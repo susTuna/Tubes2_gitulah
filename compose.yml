@@ -1,0 +1,10 @@
+services:
+  backend:
+    image: tubes2-gitulah/backend
+    pull_policy: never
+    build: ./src/backend
+    environment:
+      - name=value
+    ports:
+      - 5761:5761
+    
