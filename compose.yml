@@ -1,10 +1,22 @@
 services:
+  database:
+    image: postgres
+    environment:
+      - POSTGRES_PASSWORD=${DATABASE_ROOT_PASSWORD}
   backend:
     image: tubes2-gitulah/backend
     pull_policy: never
     build: ./src/backend
     environment:
-      - name=value
-    ports:
-      - 5761:5761
-    
+      - DATABASE_ADDRESS=${DATABASE_ADDRESS}
+      - DATABASE_PASSWORD=${DATABASE_ROOT_PASSWORD}
+    depends_on:
+      - database
+#  frontend:
+#    image: tubes2-gitulah/frontend
+#    pull_policy: never
+#    build: ./src/frontend
+#    ports:
+#      - ${FRONTEND_HOST_PORT}:80
+#    depends_on:
+#      - backend
