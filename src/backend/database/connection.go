@@ -2,6 +2,8 @@ package database
 
 import (
 	"context"
+	"fmt"
+	"os"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -11,8 +13,17 @@ import (
 var pool *pgxpool.Pool
 
 func Initialize() error {
-	var err error
-	pool, err = pgxpool.New(context.Background(), "database")
+	connstring := fmt.Sprintf(
+		"postgres://%s:%s@%s/%s",
+		os.Getenv("DATABASE_USER"),
+		os.Getenv("DATABASE_PASSWORD"),
+		os.Getenv("DATABASE_ADDRESS"),
+		os.Getenv("DATABASE_DB"),
+	)
+
+	_pool, err := pgxpool.New(context.Background(), connstring)
+	pool = _pool
+
 	return err
 }
 
