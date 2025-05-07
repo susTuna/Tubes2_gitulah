@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/filbertengyo/Tubes2_gitulah/database"
 	"github.com/go-chi/chi/v5"
 )
 
 func main() {
 	fmt.Println("Hello World!")
+
+	database.Seed()
 
 	r := chi.NewRouter()
 
