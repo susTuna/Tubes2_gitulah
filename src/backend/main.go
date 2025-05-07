@@ -11,6 +11,8 @@ import (
 func main() {
 	fmt.Println("Hello World!")
 
+	database.Initialize()
+	database.Define()
 	database.Seed()
 
 	r := chi.NewRouter()
