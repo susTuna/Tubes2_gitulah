@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/filbertengyo/Tubes2_gitulah/database"
 	"github.com/go-chi/chi/v5"
@@ -11,7 +12,11 @@ import (
 func main() {
 	fmt.Println("Hello World!")
 
-	database.Initialize()
+	if database.Initialize() != nil {
+		os.Exit(1)
+	}
+	defer database.Close()
+
 	if !database.IsDefined() {
 		database.Define()
 		database.Seed()
