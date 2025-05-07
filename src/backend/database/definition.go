@@ -18,3 +18,21 @@ func Define() {
 		)
 	`)
 }
+
+func IsDefined() bool {
+	var result bool
+
+	QueryRow(`
+		SELECT EXISTS (
+			SELECT FROM pg_tables
+			WHERE schemaname = "public"
+			AND tablename = "Elements"
+		) AND EXISTS (
+			SELECT FROM pg_tables
+			WHERE schemaname = "public"
+			AND tablename = "Recipes"
+		)
+	`).Scan(&result)
+
+	return result
+}

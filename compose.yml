@@ -1,14 +1,18 @@
 services:
   database:
     image: postgres
+    restart: always
     environment:
       - POSTGRES_USER=${DATABASE_ROOT_USER}
       - POSTGRES_PASSWORD=${DATABASE_ROOT_PASSWORD}
       - POSTGRES_DB=${DATABASE_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
   backend:
     image: tubes2-gitulah/backend
     pull_policy: never
     build: ./src/backend
+    restart: always
     environment:
       - DATABASE_ADDRESS=${DATABASE_ADDRESS}
       - DATABASE_USER=${DATABASE_ROOT_USER}

@@ -12,8 +12,10 @@ func main() {
 	fmt.Println("Hello World!")
 
 	database.Initialize()
-	database.Define()
-	database.Seed()
+	if !database.IsDefined() {
+		database.Define()
+		database.Seed()
+	}
 
 	r := chi.NewRouter()
 

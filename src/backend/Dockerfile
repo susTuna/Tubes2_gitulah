@@ -11,5 +11,5 @@ FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 COPY --from=builder /go/bin/app /app
 ENTRYPOINT [ "/app" ]
-LABEL Name=tubes2-be-gitulah Version=0.0.1
+LABEL Name=tubes2-be-gitulah Version=1.0.0
 EXPOSE 5761
