@@ -2,14 +2,18 @@ services:
   database:
     image: postgres
     environment:
+      - POSTGRES_USER=${DATABASE_ROOT_USER}
       - POSTGRES_PASSWORD=${DATABASE_ROOT_PASSWORD}
+      - POSTGRES_DB=${DATABASE_DB}
   backend:
     image: tubes2-gitulah/backend
     pull_policy: never
     build: ./src/backend
     environment:
       - DATABASE_ADDRESS=${DATABASE_ADDRESS}
+      - DATABASE_USER=${DATABASE_ROOT_USER}
       - DATABASE_PASSWORD=${DATABASE_ROOT_PASSWORD}
+      - DATABASE_DB=${DATABASE_DB}
     depends_on:
       - database
 #  frontend:
