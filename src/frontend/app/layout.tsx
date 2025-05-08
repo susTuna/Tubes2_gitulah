@@ -14,7 +14,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Gitudeh",
+  title: "Gitulah",
   description: "Little Alchemy 2 Recipe Finder",
 };
 
