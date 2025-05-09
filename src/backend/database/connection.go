@@ -32,13 +32,13 @@ func Close() {
 }
 
 func Exec(sql string, args ...any) (pgconn.CommandTag, error) {
-	return pool.Exec(context.Background(), sql, args)
+	return pool.Exec(context.Background(), sql, args...)
 }
 
 func Query(sql string, args ...any) (pgx.Rows, error) {
-	return pool.Query(context.Background(), sql, args)
+	return pool.Query(context.Background(), sql, args...)
 }
 
 func QueryRow(sql string, args ...any) pgx.Row {
-	return pool.QueryRow(context.Background(), sql, args)
+	return pool.QueryRow(context.Background(), sql, args...)
 }

@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/filbertengyo/Tubes2_gitulah/database"
 	"github.com/go-chi/chi/v5"
 )
 
 func main() {
+	time.Sleep(5 * time.Second)
 	fmt.Println("Hello World!")
 
 	if err := database.Initialize(); err != nil {
