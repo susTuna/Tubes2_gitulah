@@ -11,12 +11,11 @@ type Combination struct {
 }
 
 type SearchResult struct {
-	Element              Element
-	Dependencies         []Combination
-	TimeTaken            int
-	DependenciesSearched int
-	NodesSearched        int
-	RecipesFound         int
+	Element       Element
+	Dependencies  []Combination
+	TimeTaken     int
+	NodesSearched int
+	RecipesFound  int
 }
 
 func (fr SearchResult) Serialize() string {
