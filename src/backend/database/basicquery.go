@@ -1,11 +1,13 @@
 package database
 
 import (
+	"strings"
+
 	"github.com/filbertengyo/Tubes2_gitulah/schema"
 	"github.com/jackc/pgx/v5"
 )
 
-func FindElement(id int) (schema.Element, error) {
+func FindElementById(id int) (schema.Element, error) {
 	queryResult := QueryRow(`SELECT * FROM Elements WHERE id=$1`, id)
 
 	var element schema.Element
@@ -13,6 +15,52 @@ func FindElement(id int) (schema.Element, error) {
 	err := queryResult.Scan(&element.ID, &element.Name, &element.ImageUrl)
 
 	return element, err
+}
+
+func FindElementByName(name string) ([]schema.Element, error) {
+	elements := []schema.Element{}
+
+	queryResult, err := Query(`SELECT * FROM Elements WHERE LOWER(name) LIKE $1`, "%"+strings.ToLower(name)+"%")
+	if err != nil {
+		return elements, err
+	}
+
+	var i int32
+	var n string
+	var u string
+	_, err = pgx.ForEachRow(queryResult, []any{&i, &n, &u}, func() error {
+		elements = append(elements, schema.Element{
+			ID:       i,
+			Name:     n,
+			ImageUrl: u,
+		})
+		return nil
+	})
+
+	return elements, err
+}
+
+func Elements(start int32, end int32) ([]schema.Element, error) {
+	elements := []schema.Element{}
+
+	queryResult, err := Query(`SELECT * FROM Elements ORDER BY name LIMIT $1 OFFSET $2`, end-start, start)
+	if err != nil {
+		return elements, err
+	}
+
+	var i int32
+	var n string
+	var u string
+	_, err = pgx.ForEachRow(queryResult, []any{&i, &n, &u}, func() error {
+		elements = append(elements, schema.Element{
+			ID:       i,
+			Name:     n,
+			ImageUrl: u,
+		})
+		return nil
+	})
+
+	return elements, err
 }
 
 func FindRecipeFor(elementID int) ([]schema.Recipe, error) {
