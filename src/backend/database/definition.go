@@ -2,7 +2,7 @@ package database
 
 func Define() {
 	Exec(`
-		CREATE TABLE Elements (
+		CREATE TABLE elements (
 			id SERIAL PRIMARY KEY,
 			name VARCHAR(255),
 			image_url VARCHAR(255)
@@ -10,10 +10,10 @@ func Define() {
 	`)
 
 	Exec(`
-		CREATE TABLE Recipes (
-			result_id INTEGER REFERENCES Elements(id) ,
-			dependency1_id INTEGER REFERENCES Elements(id),
-			dependency2_id INTEGER REFERENCES Elements(id),
+		CREATE TABLE recipes (
+			result_id INTEGER REFERENCES elements(id) ,
+			dependency1_id INTEGER REFERENCES elements(id),
+			dependency2_id INTEGER REFERENCES elements(id),
 			PRIMARY KEY (result_id, dependency1_id, dependency2_id)
 		)
 	`)
@@ -26,11 +26,11 @@ func IsDefined() bool {
 		SELECT EXISTS (
 			SELECT FROM pg_tables
 			WHERE schemaname = 'public'
-			AND tablename = 'Elements'
+			AND tablename = 'elements'
 		) AND EXISTS (
 			SELECT FROM pg_tables
 			WHERE schemaname = 'public'
-			AND tablename = 'Recipes'
+			AND tablename = 'recipes'
 		)
 	`).Scan(&result)
 
