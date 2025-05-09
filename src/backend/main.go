@@ -12,7 +12,9 @@ import (
 func main() {
 	fmt.Println("Hello World!")
 
-	if database.Initialize() != nil {
+	if err := database.Initialize(); err != nil {
+		fmt.Println("An error occured!")
+		fmt.Println(err.Error())
 		os.Exit(1)
 	}
 	defer database.Close()
@@ -28,5 +30,9 @@ func main() {
 		w.Write([]byte("Hello World!"))
 	})
 
-	http.ListenAndServe(":5761", r)
+	if err := http.ListenAndServe(":5761", r); err != nil {
+		fmt.Println("An error occured!")
+		fmt.Println(err.Error())
+	}
+	fmt.Println("Goodbye World!")
 }
