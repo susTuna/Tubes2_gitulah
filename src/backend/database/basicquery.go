@@ -12,7 +12,7 @@ func FindElementById(id int) (schema.Element, error) {
 
 	var element schema.Element
 
-	err := queryResult.Scan(&element.ID, &element.Name, &element.ImageUrl)
+	err := queryResult.Scan(&element.ID, &element.Name, &element.Tier, &element.ImageUrl)
 
 	return element, err
 }
@@ -27,11 +27,13 @@ func FindElementByName(name string) ([]schema.Element, error) {
 
 	var i int32
 	var n string
+	var t int32
 	var u string
-	_, err = pgx.ForEachRow(queryResult, []any{&i, &n, &u}, func() error {
+	_, err = pgx.ForEachRow(queryResult, []any{&i, &n, &t, &u}, func() error {
 		elements = append(elements, schema.Element{
 			ID:       i,
 			Name:     n,
+			Tier:     t,
 			ImageUrl: u,
 		})
 		return nil
@@ -50,11 +52,13 @@ func Elements(start int32, end int32) ([]schema.Element, error) {
 
 	var i int32
 	var n string
+	var t int32
 	var u string
-	_, err = pgx.ForEachRow(queryResult, []any{&i, &n, &u}, func() error {
+	_, err = pgx.ForEachRow(queryResult, []any{&i, &n, &t, &u}, func() error {
 		elements = append(elements, schema.Element{
 			ID:       i,
 			Name:     n,
+			Tier:     t,
 			ImageUrl: u,
 		})
 		return nil

@@ -5,6 +5,7 @@ func Define() {
 		CREATE TABLE elements (
 			id SERIAL PRIMARY KEY,
 			name VARCHAR(255),
+			tier INTEGER,
 			image_url VARCHAR(255)
 		)
 	`)
