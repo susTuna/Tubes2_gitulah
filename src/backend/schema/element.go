@@ -8,6 +8,7 @@ import (
 type Element struct {
 	ID       int32
 	Name     string
+	Tier     int32
 	ImageUrl string
 }
 
