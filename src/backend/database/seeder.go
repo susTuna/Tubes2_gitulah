@@ -3,207 +3,154 @@ package database
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"strings"
-	"time"
 
-	"github.com/PuerkitoBio/goquery"
+	"github.com/gocolly/colly"
 )
 
-type Element struct {
-	ID   int
-	Name string
-	URL  string
-}
-
 func Seed() error {
-	elements := make(map[string]Element)
+	// Create a new collector
+	c := colly.NewCollector()
 
-	// Fetch main elements page
-	res, err := http.Get("https://little-alchemy.fandom.com/wiki/Elements_(Little_Alchemy_2)")
-	if err != nil {
-		return fmt.Errorf("failed to fetch wiki page: %v", err)
-	}
-	defer res.Body.Close()
+	// Map to store element names and their IDs
+	elementMap := make(map[string]int32)
+	var currentID int32 = 1
 
-	if res.StatusCode != 200 {
-		return fmt.Errorf("status code error: %d %s", res.StatusCode, res.Status)
-	}
-
-	// Load the HTML document
-	doc, err := goquery.NewDocument(res.Request.URL.String())
-	if err != nil {
-		return fmt.Errorf("failed to parse HTML: %v", err)
-	}
-
-	// First pass: Insert elements and store their IDs
-	doc.Find("table.article-table tr").Each(func(i int, s *goquery.Selection) {
-		if i == 0 {
+	// First pass: Scrape elements
+	c.OnHTML("table.wikitable tbody tr", func(e *colly.HTMLElement) {
+		// Skip header row
+		if e.ChildText("th") != "" {
 			return
 		}
 
-		name := strings.TrimSpace(s.Find("td:first-child").Text())
+		name := strings.TrimSpace(e.ChildText("td:nth-child(1)"))
+		if name == "" {
+			return
+		}
+
+		// Get the image URL
 		imageURL := ""
-		elementURL := ""
+		e.ForEach("td:nth-child(1) img", func(_ int, img *colly.HTMLElement) {
+			imageURL = img.Attr("src")
+		})
 
-		if img := s.Find("td:first-child img"); img.Length() > 0 {
-			imageURL, _ = img.Attr("src")
+		// Determine tier (starting elements are tier 1, others are tier > 1)
+		tier := 2
+		if e.ChildText("td:nth-child(3)") == "Starting Element" {
+			tier = 1
 		}
 
-		if link := s.Find("td:first-child a"); link.Length() > 0 {
-			href, exists := link.Attr("href")
-			if exists {
-				elementURL = "https://little-alchemy.fandom.com" + href
-			}
+		// Insert element into database
+		_, err := Exec(`
+            INSERT INTO elements (id, name, tier, image_url)
+            VALUES ($1, $2, $3, $4)
+        `, currentID, name, tier, imageURL)
+
+		if err != nil {
+			log.Printf("Error inserting element %s: %v", name, err)
+			return
 		}
 
-		if name != "" {
-			var elementID int
-			err := QueryRow(`
-                INSERT INTO Elements (name, image_url)
-                VALUES ($1, $2)
-                RETURNING id
-            `, name, imageURL).Scan(&elementID)
-
-			if err != nil {
-				log.Printf("Failed to insert element %s: %v", name, err)
-				return
-			}
-
-			elements[name] = Element{ID: elementID, Name: name, URL: elementURL}
-			log.Printf("Inserted element: %s (ID: %d)", name, elementID)
-		}
+		elementMap[name] = currentID
+		currentID++
 	})
 
-	// Second pass: Scrape recipes for each element
-	for _, element := range elements {
-		if element.URL == "" {
-			continue
+	// Visit the page to scrape elements
+	err := c.Visit("https://little-alchemy.fandom.com/wiki/Elements_(Little_Alchemy_2)")
+	if err != nil {
+		return fmt.Errorf("failed to scrape elements: %v", err)
+	}
+
+	// Second pass: Scrape recipes
+	c.OnHTML("table.wikitable tbody tr", func(e *colly.HTMLElement) {
+		if e.ChildText("th") != "" {
+			return
 		}
 
-		// Add delay to avoid overwhelming the server
-		time.Sleep(500 * time.Millisecond)
-
-		res, err := http.Get(element.URL)
-		if err != nil {
-			log.Printf("Failed to fetch element page for %s: %v", element.Name, err)
-			continue
+		resultName := strings.TrimSpace(e.ChildText("td:nth-child(1)"))
+		if resultName == "" {
+			return
 		}
 
-		doc, err := goquery.NewDocumentFromReader(res.Body)
-		if err != nil {
-			log.Printf("Failed to parse element page for %s: %v", element.Name, err)
-			continue
-		}
-
-		// Find the combinations section
-		doc.Find(`div.combination-table table tr`).Each(func(i int, s *goquery.Selection) {
-			if i == 0 {
-				return
+		// Get combinations
+		combinations := strings.Split(e.ChildText("td:nth-child(3)"), "\n")
+		for _, combo := range combinations {
+			if combo == "Starting Element" {
+				continue
 			}
 
-			// Extract the two elements that make up the combination
-			deps := s.Find("td a").Map(func(i int, s *goquery.Selection) string {
-				return strings.TrimSpace(s.Text())
-			})
+			parts := strings.Split(combo, "+")
+			if len(parts) != 2 {
+				continue
+			}
 
-			if len(deps) >= 2 {
-				dep1, exists1 := elements[deps[0]]
-				dep2, exists2 := elements[deps[1]]
+			dep1 := strings.TrimSpace(parts[0])
+			dep2 := strings.TrimSpace(parts[1])
 
-				if exists1 && exists2 {
-					// Insert recipe
-					_, err := Exec(`
-                        INSERT INTO Recipes (result_id, dependency1_id, dependency2_id)
-                        VALUES ($1, $2, $3)
-                        ON CONFLICT DO NOTHING
-                    `, element.ID, dep1.ID, dep2.ID)
+			// Insert recipe if all elements exist
+			if resultID, ok := elementMap[resultName]; ok {
+				if dep1ID, ok := elementMap[dep1]; ok {
+					if dep2ID, ok := elementMap[dep2]; ok {
+						_, err := Exec(`
+                            INSERT INTO recipes (result_id, dependency1_id, dependency2_id)
+                            VALUES ($1, $2, $3)
+                        `, resultID, dep1ID, dep2ID)
 
-					if err != nil {
-						log.Printf("Failed to insert recipe for %s (%s + %s): %v",
-							element.Name, deps[0], deps[1], err)
-					} else {
-						log.Printf("Inserted recipe: %s = %s + %s", element.Name, deps[0], deps[1])
+						if err != nil {
+							log.Printf("Error inserting recipe %s = %s + %s: %v", resultName, dep1, dep2, err)
+						}
 					}
 				}
 			}
-		})
+		}
+	})
 
-		res.Body.Close()
+	// Visit the page again to scrape recipes
+	err = c.Visit("https://little-alchemy.fandom.com/wiki/Elements_(Little_Alchemy_2)")
+	if err != nil {
+		return fmt.Errorf("failed to scrape recipes: %v", err)
 	}
-	displayScrapingResults()
+
+	// Print database contents for verification
+	PrintDatabaseContents()
+
 	return nil
 }
 
-// Add this function after existing Seed() function
-func displayScrapingResults() {
-	fmt.Println("\n=== Scraping Results Summary ===")
+func PrintDatabaseContents() {
+	fmt.Println("\n=== Database Contents ===")
 
-	var elementCount int
-	var recipeCount int
-
-	err := QueryRow("SELECT COUNT(*) FROM Elements").Scan(&elementCount)
+	// Print elements
+	fmt.Println("\nElements:")
+	elements, err := Elements(0, 1000) // Get all elements
 	if err != nil {
-		log.Printf("Error counting elements: %v", err)
+		log.Printf("Error fetching elements: %v", err)
+		return
+	}
+	for _, elem := range elements {
+		fmt.Printf("ID: %d, Name: %s, Tier: %d, ImageURL: %s\n",
+			elem.ID, elem.Name, elem.Tier, elem.ImageUrl)
+	}
+
+	// Print recipes
+	fmt.Println("\nRecipes:")
+	rows, err := Query("SELECT r.result_id, e1.name, e2.name, e3.name FROM recipes r " +
+		"JOIN elements e1 ON r.result_id = e1.id " +
+		"JOIN elements e2 ON r.dependency1_id = e2.id " +
+		"JOIN elements e3 ON r.dependency2_id = e3.id")
+	if err != nil {
+		log.Printf("Error fetching recipes: %v", err)
 		return
 	}
 
-	err = QueryRow("SELECT COUNT(*) FROM Recipes").Scan(&recipeCount)
-	if err != nil {
-		log.Printf("Error counting recipes: %v", err)
-		return
-	}
-
-	fmt.Printf("\nTotal Elements: %d\n", elementCount)
-	fmt.Printf("Total Recipes: %d\n", recipeCount)
-
-	fmt.Println("\nSample Elements (First 5):")
-	rows, err := Query(`
-        SELECT id, name, image_url 
-        FROM Elements 
-        ORDER BY id 
-        LIMIT 5
-    `)
-	if err != nil {
-		log.Printf("Error querying elements: %v", err)
-		return
-	}
-	defer rows.Close()
-
-	fmt.Printf("\n%-5s | %-30s | %s\n", "ID", "Name", "Image URL")
-	fmt.Println(strings.Repeat("-", 80))
+	var resultID int32
+	var resultName, dep1Name, dep2Name string
 	for rows.Next() {
-		var id int
-		var name, imageUrl string
-		rows.Scan(&id, &name, &imageUrl)
-		fmt.Printf("%-5d | %-30s | %s\n", id, name, imageUrl)
+		err := rows.Scan(&resultID, &resultName, &dep1Name, &dep2Name)
+		if err != nil {
+			log.Printf("Error scanning recipe row: %v", err)
+			continue
+		}
+		fmt.Printf("Result: %s (%d) = %s + %s\n", resultName, resultID, dep1Name, dep2Name)
 	}
-
-	fmt.Println("\nSample Recipes (First 5):")
-	recipeRows, err := Query(`
-        SELECT 
-            e1.name as result,
-            e2.name as ingredient1,
-            e3.name as ingredient2
-        FROM Recipes r
-        JOIN Elements e1 ON r.result_id = e1.id
-        JOIN Elements e2 ON r.dependency1_id = e2.id
-        JOIN Elements e3 ON r.dependency2_id = e3.id
-        LIMIT 5
-    `)
-	if err != nil {
-		log.Printf("Error querying recipes: %v", err)
-		return
-	}
-	defer recipeRows.Close()
-
-	fmt.Printf("\n%-30s = %-30s + %s\n", "Result", "Ingredient 1", "Ingredient 2")
-	fmt.Println(strings.Repeat("-", 80))
-	for recipeRows.Next() {
-		var result, ing1, ing2 string
-		recipeRows.Scan(&result, &ing1, &ing2)
-		fmt.Printf("%-30s = %-30s + %s\n", result, ing1, ing2)
-	}
-
-	fmt.Println("\n=== End of Results ===")
 }
