@@ -15,7 +15,7 @@ func main() {
 	fmt.Println("Hello World!")
 
 	if err := database.Initialize(); err != nil {
-		fmt.Println("An error occured!")
+		fmt.Println("An error occured during initialization!")
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
@@ -23,7 +23,12 @@ func main() {
 
 	if !database.IsDefined() {
 		database.Define()
-		database.Seed()
+
+		if err := database.Seed(); err != nil {
+			fmt.Println("An error occured during seeding!")
+			fmt.Println(err.Error())
+			os.Exit(1)
+		}
 	}
 
 	r := chi.NewRouter()
