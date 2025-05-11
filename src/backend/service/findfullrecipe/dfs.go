@@ -1,77 +1,86 @@
 package findfullrecipe
 
 import (
-	"sync"
+	"time"
 
 	"github.com/filbertengyo/Tubes2_gitulah/database"
 	"github.com/filbertengyo/Tubes2_gitulah/schema"
 )
 
-func WithDFS(element schema.Element, count int, delay int, multithreaded bool) int {
+func WithSinglethreadedDFS(element schema.Element, count int, delay int) int {
 	searchID, search := prepareSearch(element)
-	if multithreaded {
-		go multithreadedDFS(search, count, delay, new(sync.WaitGroup))
-	} else {
-		go singlethreadedDFS(search, count, delay)
-	}
+
+	go func() {
+		start := time.Now()
+
+		singlethreadedDFS(search, search.Root, count, delay)
+
+		search.Lock()
+		search.TimeTaken = int(time.Since(start).Milliseconds())
+		search.Unlock()
+
+	}()
+
 	return searchID
 }
 
-func singlethreadedDFS(search *schema.SearchResult, count int, delay int) {
-	recipes, _ := database.FindRecipeFor(int(search.Element.ID))
+func WithMultithreadedDFS(element schema.Element, count int, delay int) int {
+	searchID, search := prepareSearch(element)
 
-	if len(recipes) == 0 {
-		search.RecipesFound = 1
-		return
-	}
+	go func() {
+		start := time.Now()
 
-	for i := 0; i < len(recipes) && search.RecipesFound < count; i++ {
-		search.NodesSearched++
+		singlethreadedDFS(search, search.Root, count, delay)
 
-		ingredient1, _ := database.FindElementById(int(recipes[i].Dependency1ID))
-		ingredient2, _ := database.FindElementById(int(recipes[i].Dependency2ID))
-		combination := schema.Combination{
-			Ingredient1: &schema.SearchResult{Element: ingredient1},
-			Ingredient2: &schema.SearchResult{Element: ingredient2},
-		}
+		search.TimeTaken = int(time.Since(start).Milliseconds())
+	}()
 
-		singlethreadedDFS(combination.Ingredient1, count, delay)
-		singlethreadedDFS(combination.Ingredient2, count, delay)
-
-		search.RecipesFound += combination.Ingredient1.RecipesFound * combination.Ingredient2.RecipesFound
-		search.Dependencies = append(search.Dependencies, combination)
-	}
+	return searchID
 }
 
-func multithreadedDFS(search *schema.SearchResult, count int, delay int, wg *sync.WaitGroup) {
-	defer wg.Done()
+func singlethreadedDFS(result *schema.SearchResult, node *schema.SearchNode, count int, delay int) {
+	time.Sleep(time.Duration(delay) * time.Millisecond)
 
-	recipes, _ := database.FindRecipeFor(int(search.Element.ID))
+	node.RLock()
+	recipes, _ := database.FindRecipeFor(int(node.Element.ID))
+	node.RUnlock()
 
 	if len(recipes) == 0 {
-		search.RecipesFound = 1
+		node.RecipesFound = 1
+		updateRecipeCounts(node)
 		return
 	}
 
-	for i := 0; i < len(recipes) && search.RecipesFound < count; i++ {
-		search.NodesSearched++
+	result.RLock()
+	for i := 0; i < len(recipes) && node.RecipesFound < count; i++ {
+		result.RUnlock()
+
+		result.Lock()
+		result.NodesSearched++
+		result.Unlock()
 
 		ingredient1, _ := database.FindElementById(int(recipes[i].Dependency1ID))
 		ingredient2, _ := database.FindElementById(int(recipes[i].Dependency2ID))
 		combination := schema.Combination{
-			Ingredient1: &schema.SearchResult{Element: ingredient1},
-			Ingredient2: &schema.SearchResult{Element: ingredient2},
+			Result:      node,
+			Ingredient1: &schema.SearchNode{Element: ingredient1},
+			Ingredient2: &schema.SearchNode{Element: ingredient2},
 		}
+		combination.Ingredient1.Parent = &combination
+		combination.Ingredient2.Parent = &combination
 
-		wg := new(sync.WaitGroup)
-		wg.Add(2)
+		node.Lock()
+		node.Dependencies = append(node.Dependencies, &combination)
+		node.Unlock()
 
-		go multithreadedDFS(combination.Ingredient2, count, delay, wg)
-		multithreadedDFS(combination.Ingredient1, count, delay, wg)
+		singlethreadedDFS(result, combination.Ingredient1, count, delay)
+		singlethreadedDFS(result, combination.Ingredient2, max(count/node.RecipesFound, 1), delay)
 
-		wg.Wait()
-
-		search.RecipesFound += combination.Ingredient1.RecipesFound * combination.Ingredient2.RecipesFound
-		search.Dependencies = append(search.Dependencies, combination)
+		result.RLock()
 	}
+	result.RUnlock()
+}
+
+func multithreadedDFS(result *schema.SearchResult, node *schema.SearchNode, count int, delay int) {
+
 }
