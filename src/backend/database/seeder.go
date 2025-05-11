@@ -39,6 +39,9 @@ func Seed() error {
 	var currentID int32 = 1
 	tableIndex := 0
 
+	// Map of element IDs and their tiers
+	tierMap := make(map[int32]int32)
+
 	// First pass: Scrape elements
 	c.OnHTML("table.list-table", func(table *colly.HTMLElement) {
 		tableIndex++
@@ -74,6 +77,7 @@ func Seed() error {
 			}
 
 			elementMap[name] = currentID
+			tierMap[currentID] = tier
 			currentID++
 		})
 	})
@@ -120,20 +124,35 @@ func Seed() error {
 				}
 
 				// Insert recipe if all elements exist in the map
-				if resultID, ok := elementMap[resultName]; ok {
-					if dep1ID, ok := elementMap[ingredient1]; ok {
-						if dep2ID, ok := elementMap[ingredient2]; ok {
-							_, err := Exec(`
-                                INSERT INTO recipes (result_id, dependency1_id, dependency2_id)
-                                VALUES ($1, $2, $3)
-                            `, resultID, dep1ID, dep2ID)
+				resultID, ok1 := elementMap[resultName]
+				dep1ID, ok2 := elementMap[ingredient1]
+				dep2ID, ok3 := elementMap[ingredient2]
 
-							if err != nil {
-								log.Printf("Error inserting recipe %s = %s + %s: %v",
-									resultName, ingredient1, ingredient2, err)
-							}
-						}
-					}
+				if !(ok1 && ok2 && ok3) {
+					return
+				}
+
+				// Insert recipe if result tier is higher than both dependency tiers
+				resultTier, ok1 := tierMap[resultID]
+				dep1Tier, ok2 := tierMap[dep1ID]
+				dep2Tier, ok3 := tierMap[dep2ID]
+
+				if !(ok1 && ok2 && ok3) {
+					return
+				}
+
+				if resultTier <= dep1Tier || resultTier <= dep2Tier {
+					return
+				}
+
+				_, err := Exec(`
+                        INSERT INTO recipes (result_id, dependency1_id, dependency2_id)
+                        VALUES ($1, $2, $3)
+                    `, resultID, dep1ID, dep2ID)
+
+				if err != nil {
+					log.Printf("Error inserting recipe %s = %s + %s: %v",
+						resultName, ingredient1, ingredient2, err)
 				}
 			})
 		})
