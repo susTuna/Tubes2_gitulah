@@ -30,7 +30,11 @@ func WithMultithreadedBFS(element schema.Element, count int, delay int) int {
 	go func() {
 		start := time.Now()
 
-		singlethreadedBFS(search, count, delay)
+		done := make(chan bool)
+
+		go bfssearchhandle(search, search.Root, count, delay, done)
+		<-done
+		cleanupInvalidCombinations(search.Root)
 
 		search.Lock()
 		search.TimeTaken = int(time.Since(start).Milliseconds())
@@ -137,4 +141,94 @@ func singlethreadedBFS(result *schema.SearchResult, count int, delay int) {
 
 		nodes = nextNodes
 	}
+}
+
+func bfssearchhandle(result *schema.SearchResult, node *schema.SearchNode, count int, delay int, done chan bool) {
+	// Get recipes for current node
+	recipes, _ := database.FindRecipeFor(int(node.Element.ID))
+
+	if len(recipes) == 0 {
+		node.Lock()
+		node.RecipesFound = 1
+		node.Unlock()
+		updateRecipeCounts(node)
+		done <- true
+		return
+	}
+
+	for _, recipe := range recipes {
+		// Check if we've already found enough recipes
+		result.Root.RLock()
+		if result.Root.RecipesFound >= count {
+			result.Root.RUnlock()
+			done <- true
+			return
+		}
+		result.Root.RUnlock()
+
+		// Add delay as specified
+		time.Sleep(time.Duration(delay) * time.Millisecond)
+
+		// Update search stats
+		result.Lock()
+		result.NodesSearched++
+		result.Unlock()
+
+		// Get ingredients and create combination
+		ingredient1, _ := database.FindElementById(int(recipe.Dependency1ID))
+		ingredient2, _ := database.FindElementById(int(recipe.Dependency2ID))
+
+		combination := schema.Combination{
+			Result:      node,
+			Ingredient1: &schema.SearchNode{Element: ingredient1},
+			Ingredient2: &schema.SearchNode{Element: ingredient2},
+		}
+		combination.Ingredient1.Parent = &combination
+		combination.Ingredient2.Parent = &combination
+
+		// Update node dependencies
+		node.Lock()
+		node.Dependencies = append(node.Dependencies, &combination)
+		node.Unlock()
+
+		// Create channels for ingredient searches
+		done1 := make(chan bool)
+		done2 := make(chan bool)
+
+		// Launch concurrent searches for ingredients
+		go bfssearchhandle(result, combination.Ingredient1, count, delay, done1)
+		go bfssearchhandle(result, combination.Ingredient2, count, delay, done2)
+
+		// Wait for both ingredient searches to complete
+		<-done1
+		<-done2
+	}
+
+	done <- true
+}
+
+func cleanupInvalidCombinations(node *schema.SearchNode) {
+	node.RLock()
+	if node.RecipesFound == 0 {
+		if node.Parent != nil {
+			result := node.Parent.Result
+			combination := node.Parent
+
+			result.Lock()
+			newDeps := []*schema.Combination{}
+			for _, dep := range result.Dependencies {
+				if dep != combination {
+					newDeps = append(newDeps, dep)
+				}
+			}
+			result.Dependencies = newDeps
+			result.Unlock()
+		}
+	} else {
+		for _, combination := range node.Dependencies {
+			cleanupInvalidCombinations(combination.Ingredient1)
+			cleanupInvalidCombinations(combination.Ingredient2)
+		}
+	}
+	node.RUnlock()
 }
