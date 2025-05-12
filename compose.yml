@@ -40,7 +40,7 @@ services:
       - /app/node_modules
     command: sh -c "npm install && npm run dev"
     ports:
-      - ${FRONTEND_HOST_PORT:-3000}:53000
+      - ${FRONTEND_HOST_PORT:-3000}:3000
     depends_on:
       - backend
 
