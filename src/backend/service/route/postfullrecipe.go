@@ -33,11 +33,11 @@ func PostFullRecipe(w http.ResponseWriter, r *http.Request) {
 	if request.Method == "dfs" && request.Threading == "single" {
 		response.SearchID = findfullrecipe.WithSinglethreadedDFS(element, request.Count, request.Delay)
 	} else if request.Method == "dfs" && request.Threading == "multi" {
-		response.SearchID = -1
+		response.SearchID = findfullrecipe.WithMultithreadedDFS(element, request.Count, request.Delay)
 	} else if request.Method == "bfs" && request.Threading == "single" {
 		response.SearchID = findfullrecipe.WithSinglethreadedBFS(element, request.Count, request.Delay)
 	} else if request.Method == "bfs" && request.Threading == "multi" {
-		response.SearchID = -1
+		response.SearchID = findfullrecipe.WithMultithreadedBFS(element, request.Count, request.Delay)
 	} else {
 		w.WriteHeader(http.StatusNotImplemented)
 		return
