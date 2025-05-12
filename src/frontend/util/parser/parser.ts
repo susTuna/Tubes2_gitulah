@@ -103,10 +103,10 @@ export function parseRecipeJson(recipeJson: RecipeJson): { flowNodes: FlowNode[]
         image_url 
       },
       position: { x: 0, y: 0 },
-      width: 50,
-      height: 50,
+      width: 25,
+      height: 25,
     });
-    g.setNode(id, { width: 50, height: 50 });
+    g.setNode(id, { width: 25, height: 25 });
   });
 
   let sauce = 'Yuuka'
@@ -118,8 +118,8 @@ export function parseRecipeJson(recipeJson: RecipeJson): { flowNodes: FlowNode[]
     const target1 = nodeMap[dep.dependency1];
     const target2 = nodeMap[dep.dependency2];
 
-    flowEdges.push({ id: `${target1}-${source}`, type: 'step', source: source, target: target1, style: { stroke: color, strokeWidth: 2 } });
-    flowEdges.push({ id: `${target2}-${source}`, type: 'step', source: source, target: target2, style: { stroke: color, strokeWidth: 2 } });
+    flowEdges.push({ id: `${target1}-${source}`, type: 'step', source: source, target: target1, style: { stroke: color } });
+    flowEdges.push({ id: `${target2}-${source}`, type: 'step', source: source, target: target2, style: { stroke: color } });
 
     g.setEdge(source, target1);
     g.setEdge(source, target2);
@@ -127,11 +127,20 @@ export function parseRecipeJson(recipeJson: RecipeJson): { flowNodes: FlowNode[]
 
   dagre.layout(g);
 
-  console.log('Nodes after layout:', flowNodes);
+  // Get the Dagre-computed position of the first node
+  const anchorId = flowNodes[0].id;
+  const anchorNode = g.node(anchorId);
+
+  // Calculate offset to move anchor node to (0, 0)
+  const offsetX = anchorNode.x;
+  const offsetY = anchorNode.y;
+
   flowNodes.forEach(node => {
     const nodeWithPosition = g.node(node.id);
-    node.position = { x: nodeWithPosition.x, y: nodeWithPosition.y };
-    console.log(`Node position: ${node.id} - x: ${node.position.x}, y: ${node.position.y}`);
+    node.position = {
+       x: nodeWithPosition.x - offsetX - node.width / 2,
+       y: nodeWithPosition.y - offsetY - node.height / 2
+};
   });
 
   return { flowNodes, flowEdges };
