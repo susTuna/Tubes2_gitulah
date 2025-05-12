@@ -24,6 +24,23 @@ func WithSinglethreadedBFS(element schema.Element, count int, delay int) int {
 	return searchID
 }
 
+func WithMultithreadedBFS(element schema.Element, count int, delay int) int {
+	searchID, search := prepareSearch(element)
+
+	go func() {
+		start := time.Now()
+
+		singlethreadedBFS(search, count, delay)
+
+		search.Lock()
+		search.TimeTaken = int(time.Since(start).Milliseconds())
+		search.Finished = true
+		search.Unlock()
+	}()
+
+	return searchID
+}
+
 func singlethreadedBFS(result *schema.SearchResult, count int, delay int) {
 	result.RLock()
 	nodes := []*schema.SearchNode{result.Root}
