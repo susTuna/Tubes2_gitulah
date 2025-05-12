@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/filbertengyo/Tubes2_gitulah/database"
+	"github.com/filbertengyo/Tubes2_gitulah/service/middleware"
 	"github.com/filbertengyo/Tubes2_gitulah/service/route"
 )
 
@@ -46,13 +47,15 @@ func main() {
 
 	http.HandleFunc("GET /elements/{identifier}/recipe", route.Recipe)
 
-	http.HandleFunc("POST /fullrecipe", route.PostFullRecipe)
+	http.HandleFunc("POST /fullrecipe/", route.PostFullRecipe)
 
 	http.HandleFunc("GET /fullrecipe/immediate", route.ImmediateFullRecipe)
 
 	http.HandleFunc("GET /fullrecipe/{identifier}", route.GetFullRecipe)
 
-	if err := http.ListenAndServe(":5761", nil); err != nil {
+	handler := middleware.CORSMiddleware(http.DefaultServeMux)
+
+	if err := http.ListenAndServe(":5761", handler); err != nil {
 		fmt.Println("An error occured!")
 		fmt.Println(err.Error())
 	}
