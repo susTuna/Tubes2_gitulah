@@ -1,6 +1,7 @@
 // utils/recipeTree.ts
 import dagre from 'dagre';
 import StepEdge from '@/components/edges/stepedge';
+import ImageNode from '@/components/nodes/imagenode';
 
 export interface RecipeJson {
   nodes: number[];
@@ -18,6 +19,7 @@ export interface RecipeJson {
 
 export interface FlowNode {
   id: string;
+  type?: string;
   data: { label: string; image_url: string };
   position: { x: number; y: number };
   width: number;
@@ -34,6 +36,10 @@ export interface FlowEdge {
 
 export const edgeTypes = {
   step: StepEdge,
+}
+
+export const nodeTypes = {
+  image: ImageNode,
 }
 
 const generateRandomColor = () => {
@@ -86,11 +92,12 @@ export function parseRecipeJson(recipeJson: RecipeJson): { flowNodes: FlowNode[]
     const id = index.toString();
     const element = nameMap[name];
     const label = element?.name || `Element ${name}`;
-    const image_url = element?.image_url;
+    const image_url = element?.image_url.split("svg")[0] + "svg";
 
     nodeMap[index] = id;
     flowNodes.push({
       id,
+      type: 'image',
       data: { 
         label,
         image_url 
@@ -111,8 +118,8 @@ export function parseRecipeJson(recipeJson: RecipeJson): { flowNodes: FlowNode[]
     const target1 = nodeMap[dep.dependency1];
     const target2 = nodeMap[dep.dependency2];
 
-    flowEdges.push({ id: `${target1}-${source}`, type: 'step', source: source, target: target1, style: { stroke: color } });
-    flowEdges.push({ id: `${target2}-${source}`, type: 'step', source, target: target2, style: { stroke: color } });
+    flowEdges.push({ id: `${target1}-${source}`, type: 'step', source: source, target: target1, style: { stroke: color, strokeWidth: 2 } });
+    flowEdges.push({ id: `${target2}-${source}`, type: 'step', source: source, target: target2, style: { stroke: color, strokeWidth: 2 } });
 
     g.setEdge(source, target1);
     g.setEdge(source, target2);
@@ -120,9 +127,11 @@ export function parseRecipeJson(recipeJson: RecipeJson): { flowNodes: FlowNode[]
 
   dagre.layout(g);
 
+  console.log('Nodes after layout:', flowNodes);
   flowNodes.forEach(node => {
     const nodeWithPosition = g.node(node.id);
     node.position = { x: nodeWithPosition.x, y: nodeWithPosition.y };
+    console.log(`Node position: ${node.id} - x: ${node.position.x}, y: ${node.position.y}`);
   });
 
   return { flowNodes, flowEdges };
