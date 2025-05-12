@@ -4,10 +4,13 @@ import SearchBar from "@/components/searchbar/searchbar"
 import RecipeTree from "@/components/recipetree/tree"
 
 const recipeData = {
-  nodes: ["Acid Rain", "Rain", "Rain", "Smoke", "Smog"],
+  nodes: ["Earth", "Air", "Dust", "Fire", "Gunpowder", "Fire", "Explosion", "Fire", "Fire", "Energy", "Atomic Bomb"],
   dependencies: [
-    { node: 0, dependency1: 1, dependency2: 3 },
-    { node: 0, dependency1: 2, dependency2: 4 }
+    {node: 10, dependency1: 6, dependency2: 9},
+    {node: 2, dependency1: 0, dependency2: 1},
+    {node: 4, dependency1: 2, dependency2: 7},
+    {node: 9, dependency1: 3, dependency2: 8},
+    {node: 6, dependency1: 5, dependency2: 4}
   ]
 };
 
