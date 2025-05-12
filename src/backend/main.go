@@ -48,7 +48,7 @@ func main() {
 
 	http.HandleFunc("POST /fullrecipe", route.PostFullRecipe)
 
-	http.HandleFunc("POST /fullrecipe/immediate", route.ImmediateFullRecipe)
+	http.HandleFunc("GET /fullrecipe/immediate", route.ImmediateFullRecipe)
 
 	http.HandleFunc("GET /fullrecipe/{identifier}", route.GetFullRecipe)
 
