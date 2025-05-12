@@ -5,16 +5,8 @@ import SearchBar from "@/components/searchbar/searchbar"
 import RecipeTree from "@/components/recipetree/tree"
 import { fetchElementInfo } from "@/util/parser/parser"
 
-interface ElementInfo {
-  id: number;
-  name: string;
-  tier: number;
-  image_url: string;
-}
-
 export default function Page() {
   const [recipeData, setRecipeData] = useState(null)
-  const [treeKey, setTreeKey] = useState(0)
 
   const handleSearch = async (requestBody: any) => {
     try {
