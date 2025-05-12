@@ -24,6 +24,14 @@ interface SearchBarProps {
   onSearch: (requestBody: any) => void
 }
 
+interface Element {
+  id: number
+  name: string
+  tier: number
+  image_url: string
+}
+
+
 export default function SearchBar({ onSearch }: SearchBarProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [filterOptions, setFilterOptions] = useState<FilterOption[]>([
@@ -50,7 +58,7 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
     )
   }
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault() // Prevent default form submission behavior
     console.log("Search button clicked")
     const activeFilters = filterOptions.filter((option) => option.checked).map((option) => option.label)
@@ -61,17 +69,38 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
     const selectedMethod = filterOptions.find(f => (f.id === "bfs" || f.id === "dfs") && f.checked)?.id || "dfs"
     const threading = filterOptions.find(f => f.id === "multi" && f.checked) ? "multi" : "single"
 
-    const requestBody = {
-      element: Number(searchQuery) || 1,
-      method: selectedMethod,
-      count: 1,
-      delay: 20,
-      threading: threading
+    try {
+      const response = await fetch(`http://localhost:5761/elements/${searchQuery}?type=name`)
+      if (!response.ok) {
+        throw new Error("Failed to fetch data from server")
+      }
+
+      const data = await response.json()
+      console.log("Data received:", data)
+
+      const element = data.find((item : Element ) => item.name.toLowerCase() === searchQuery.toLowerCase());
+
+      if (element) {
+        console.log("Found element ID:", element.id);
+      } else {
+        console.log("Element not found");
+      }
+
+      const requestBody = {
+        element: element.id,
+        method: selectedMethod,
+        count: 1,
+        delay: 20,
+        threading: threading
+      }
+  
+      onSearch(requestBody)
+      
+    } catch (error) {
+      console.error("Error during search:", error)
     }
 
-    onSearch(requestBody)
   }
-    // Here you would typically call your search function with these parameters
 
   return (
     <form onSubmit={handleSearch} className="flex w-full max-w-lg items-center space-x-2 text-white">
