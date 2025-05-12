@@ -6,14 +6,14 @@ import (
 )
 
 type Element struct {
-	ID       int32
-	Name     string
-	Tier     int32
-	ImageUrl string
+	ID       int32  `json:"id"`
+	Name     string `json:"name"`
+	Tier     int32  `json:"tier"`
+	ImageUrl string `json:"image_url"`
 }
 
 func (e Element) Serialize() string {
-	var w *strings.Builder
-	json.NewEncoder(w).Encode(e)
+	var w strings.Builder
+	json.NewEncoder(&w).Encode(e)
 	return w.String()
 }

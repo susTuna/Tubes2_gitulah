@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/filbertengyo/Tubes2_gitulah/database"
-	"github.com/go-chi/chi/v5"
+	"github.com/filbertengyo/Tubes2_gitulah/service/route"
 )
 
 func main() {
@@ -31,15 +31,31 @@ func main() {
 		}
 	}
 
-	r := chi.NewRouter()
-
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello World!"))
+	http.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		if val, ok := q["msg"]; ok {
+			fmt.Fprintf(w, "Echo: %v", val[0])
+		} else {
+			fmt.Fprint(w, "Hello World!")
+		}
 	})
 
-	if err := http.ListenAndServe(":5761", r); err != nil {
+	http.HandleFunc("GET /elements", route.Elements)
+
+	http.HandleFunc("GET /elements/{identifier}", route.Element)
+
+	http.HandleFunc("GET /elements/{identifier}/recipe", route.Recipe)
+
+	http.HandleFunc("POST /fullrecipe", route.PostFullRecipe)
+
+	http.HandleFunc("POST /fullrecipe/immediate", route.ImmediateFullRecipe)
+
+	http.HandleFunc("GET /fullrecipe/{identifier}", route.GetFullRecipe)
+
+	if err := http.ListenAndServe(":5761", nil); err != nil {
 		fmt.Println("An error occured!")
 		fmt.Println(err.Error())
 	}
+
 	fmt.Println("Goodbye World!")
 }

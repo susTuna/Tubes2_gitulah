@@ -28,17 +28,17 @@ type SearchResult struct {
 }
 
 type SerializedCombination struct {
-	Result      int
-	Dependency1 int
-	Dependency2 int
+	Result      int `json:"result"`
+	Dependency1 int `json:"dependency1"`
+	Dependency2 int `json:"dependency2"`
 }
 
 type SerializedSearchResult struct {
-	Nodes         []int
-	Dependencies  []SerializedCombination
-	TimeTaken     int
-	NodesSearched int
-	RecipesFound  int
+	Nodes         []int                   `json:"nodes"`
+	Dependencies  []SerializedCombination `json:"dependencies"`
+	TimeTaken     int                     `json:"time_taken"`
+	NodesSearched int                     `json:"nodes_searched"`
+	RecipesFound  int                     `json:"recipes_found"`
 }
 
 func (fr *SearchNode) Lock() {
@@ -58,8 +58,8 @@ func (fr *SearchNode) RUnlock() {
 }
 
 func (fr *SearchResult) Serialize() string {
-	var w *strings.Builder
-	json.NewEncoder(w).Encode(fr.toSerializedIntermediate())
+	var w strings.Builder
+	json.NewEncoder(&w).Encode(fr.toSerializedIntermediate())
 	return w.String()
 }
 
@@ -80,6 +80,7 @@ func (fr *SearchResult) RUnlock() {
 }
 
 func (fr *SearchResult) toSerializedIntermediate() SerializedSearchResult {
+	fr.RLock()
 	intermediate := SerializedSearchResult{
 		Nodes:         []int{int(fr.Root.Element.ID)},
 		Dependencies:  []SerializedCombination{},
@@ -87,39 +88,44 @@ func (fr *SearchResult) toSerializedIntermediate() SerializedSearchResult {
 		NodesSearched: fr.NodesSearched,
 		RecipesFound:  fr.Root.RecipesFound,
 	}
+	fr.RUnlock()
 
-	for i := 0; i < len(fr.Root.Dependencies); i++ {
-		intermediate.Nodes = append(intermediate.Nodes,
-			int(fr.Root.Dependencies[i].Ingredient1.Element.ID),
-			int(fr.Root.Dependencies[i].Ingredient2.Element.ID),
-		)
+	fr.Root.RLock()
+	dependencies := fr.Root.Dependencies
+	fr.Root.RUnlock()
 
-		intermediate.Dependencies = append(intermediate.Dependencies, SerializedCombination{
-			Result:      0,
-			Dependency1: len(intermediate.Nodes) - 2,
-			Dependency2: len(intermediate.Nodes) - 1,
-		})
-
-		search1 := SearchResult{Root: fr.Root.Dependencies[i].Ingredient1}
-		search2 := SearchResult{Root: fr.Root.Dependencies[i].Ingredient2}
+	for i := 0; i < len(dependencies); i++ {
+		search1 := SearchResult{Root: dependencies[i].Ingredient1}
+		search2 := SearchResult{Root: dependencies[i].Ingredient2}
 
 		intermediate1 := search1.toSerializedIntermediate()
 		intermediate2 := search2.toSerializedIntermediate()
 
-		for j := 0; j < len(intermediate1.Dependencies); j++ {
-			intermediate1.Dependencies[j].Result += len(intermediate.Nodes)
-			intermediate1.Dependencies[j].Dependency1 += len(intermediate.Nodes)
-			intermediate1.Dependencies[j].Dependency2 += len(intermediate.Nodes)
+		depIndex1 := len(intermediate.Nodes)
+		intermediate.Nodes = append(intermediate.Nodes, intermediate1.Nodes...)
+
+		depIndex2 := len(intermediate.Nodes)
+		intermediate.Nodes = append(intermediate.Nodes, intermediate2.Nodes...)
+
+		intermediate.Dependencies = append(intermediate.Dependencies, SerializedCombination{
+			Result:      0,
+			Dependency1: depIndex1,
+			Dependency2: depIndex2,
+		})
+
+		for j := range intermediate1.Dependencies {
+			intermediate1.Dependencies[j].Result += depIndex1
+			intermediate1.Dependencies[j].Dependency1 += depIndex1
+			intermediate1.Dependencies[j].Dependency2 += depIndex1
+		}
+
+		for j := range intermediate2.Dependencies {
+			intermediate2.Dependencies[j].Result += depIndex2
+			intermediate2.Dependencies[j].Dependency1 += depIndex2
+			intermediate2.Dependencies[j].Dependency2 += depIndex2
 		}
 
 		intermediate.Dependencies = append(intermediate.Dependencies, intermediate1.Dependencies...)
-
-		for j := 0; j < len(intermediate2.Dependencies); j++ {
-			intermediate2.Dependencies[j].Result += len(intermediate.Nodes)
-			intermediate2.Dependencies[j].Dependency1 += len(intermediate.Nodes)
-			intermediate2.Dependencies[j].Dependency2 += len(intermediate.Nodes)
-		}
-
 		intermediate.Dependencies = append(intermediate.Dependencies, intermediate2.Dependencies...)
 	}
 

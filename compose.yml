@@ -25,6 +25,8 @@ services:
       - DATABASE_DB=${DATABASE_DB}
     depends_on:
       - database
+    ports:
+      - 5761:5761
 #  frontend:
 #    image: tubes2-gitulah/frontend
 #    pull_policy: never

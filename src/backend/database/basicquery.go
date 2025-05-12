@@ -42,7 +42,32 @@ func FindElementByName(name string) ([]schema.Element, error) {
 	return elements, err
 }
 
-func Elements(start int32, end int32) ([]schema.Element, error) {
+func FindElementInTier(start int, end int, tier int) ([]schema.Element, error) {
+	elements := []schema.Element{}
+
+	queryResult, err := Query(`SELECT * FROM Elements WHERE tier = $1 ORDER BY name LIMIT $2 OFFSET $3`, tier, end-start, start)
+	if err != nil {
+		return elements, err
+	}
+
+	var i int32
+	var n string
+	var t int32
+	var u string
+	_, err = pgx.ForEachRow(queryResult, []any{&i, &n, &t, &u}, func() error {
+		elements = append(elements, schema.Element{
+			ID:       i,
+			Name:     n,
+			Tier:     t,
+			ImageUrl: u,
+		})
+		return nil
+	})
+
+	return elements, err
+}
+
+func Elements(start int, end int) ([]schema.Element, error) {
 	elements := []schema.Element{}
 
 	queryResult, err := Query(`SELECT * FROM Elements ORDER BY name LIMIT $1 OFFSET $2`, end-start, start)

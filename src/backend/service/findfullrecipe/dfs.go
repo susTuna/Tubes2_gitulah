@@ -74,7 +74,7 @@ func singlethreadedDFS(result *schema.SearchResult, node *schema.SearchNode, cou
 		node.Unlock()
 
 		singlethreadedDFS(result, combination.Ingredient1, count, delay)
-		singlethreadedDFS(result, combination.Ingredient2, max(count/node.RecipesFound, 1), delay)
+		singlethreadedDFS(result, combination.Ingredient2, count, delay)
 
 		result.RLock()
 	}
