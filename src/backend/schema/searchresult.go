@@ -24,6 +24,7 @@ type SearchResult struct {
 	Root          *SearchNode
 	TimeTaken     int
 	NodesSearched int
+	Finished      bool
 	lock          sync.RWMutex
 }
 
@@ -39,6 +40,7 @@ type SerializedSearchResult struct {
 	TimeTaken     int                     `json:"time_taken"`
 	NodesSearched int                     `json:"nodes_searched"`
 	RecipesFound  int                     `json:"recipes_found"`
+	Finished      bool                    `json:"finsihed"`
 }
 
 func (fr *SearchNode) Lock() {
@@ -87,6 +89,7 @@ func (fr *SearchResult) toSerializedIntermediate() SerializedSearchResult {
 		TimeTaken:     fr.TimeTaken,
 		NodesSearched: fr.NodesSearched,
 		RecipesFound:  fr.Root.RecipesFound,
+		Finished:      fr.Finished,
 	}
 	fr.RUnlock()
 

@@ -16,9 +16,9 @@ func WithSinglethreadedDFS(element schema.Element, count int, delay int) int {
 		singlethreadedDFS(search, search.Root, count, delay)
 
 		search.Lock()
+		search.Finished = true
 		search.TimeTaken = int(time.Since(start).Milliseconds())
 		search.Unlock()
-
 	}()
 
 	return searchID

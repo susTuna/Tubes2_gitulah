@@ -51,7 +51,7 @@ func ImmediateFullRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for searchResult.TimeTaken == 0 {
+	for !searchResult.Finished {
 		time.Sleep(time.Millisecond * 1)
 	}
 

@@ -15,7 +15,10 @@ func WithSinglethreadedBFS(element schema.Element, count int, delay int) int {
 
 		singlethreadedBFS(search, count, delay)
 
+		search.Lock()
 		search.TimeTaken = int(time.Since(start).Milliseconds())
+		search.Finished = true
+		search.Unlock()
 	}()
 
 	return searchID
