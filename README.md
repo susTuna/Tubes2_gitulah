@@ -1,38 +1,56 @@
 # Tubes2_gitulah
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
-
 ## Getting Started
+These instructions are meant to setup and run Little Alchemy 2 Recipe Finder locally.
 
-First, run the development server:
+### Prerequisite
+- Docker
+- Docker Compose (comes built-in with Docker Desktop)
 
+### Installing
+#### Windows & macOS (via Docker Desktop)
+1. **Download** [Docker Desktop](https://www.docker.com/products/docker-desktop)
+2. **Install Docker Desktop**
+
+    Follow the installer. Once done:
+    - Verify Docker works by running `docker --version` in Command Prompt or Terminal.
+    - Ensure WSL is installed (on Windows).
+3. **Clone this repository**
+    ```bash
+    git clone https://github.com/filbertengyo/Tubes2_gitulah.git
+    cd Tubes2_gitulah
+    ```
+4. **Run the app**
+    ```bash
+    docker compose up --build
+    ```
+#### Linux (Ubuntu)
+1. **Install Docker Engine**
+    ```bash
+    sudo apt-get install docker.io
+    sudo systemctl enable docker #enable the docker on service
+    sudo systemctl start docker #start docker on service
+    ```
+2. **Install Docker Compose Plugin**
+    ```bash
+    sudo apt-get install docker-compose-plugin
+    ```
+3. **Verify Installation**
+    ```bash
+    docker --version
+    docker compose version
+    ```
+4. **Clone the project & run**
+    ```bash
+    git clone https://github.com/filbertengyo/Tubes2_gitulah.git
+    cd Tubes2_gitulah
+    docker compose up --build
+    ```
+### Running the App
+The recipe finder can be accessed [here](localhost:3000)
+
+### Stopping the App
+To stop the app
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+docker compose down
 ```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
