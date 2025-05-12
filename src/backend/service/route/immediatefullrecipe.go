@@ -38,7 +38,7 @@ func ImmediateFullRecipe(w http.ResponseWriter, r *http.Request) {
 	} else if request.Method == "bfs" && request.Threading == "single" {
 		response.SearchID = findfullrecipe.WithSinglethreadedBFS(element, request.Count, request.Delay)
 	} else if request.Method == "bfs" && request.Threading == "multi" {
-		response.SearchID = -1
+		response.SearchID = findfullrecipe.WithMultithreadedBFS(element, request.Count, request.Delay)
 	} else {
 		w.WriteHeader(http.StatusNotImplemented)
 		return
