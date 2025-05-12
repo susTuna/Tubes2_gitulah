@@ -20,7 +20,11 @@ interface FilterOption {
   checked: boolean
 }
 
-export default function SearchBar() {
+interface SearchBarProps {
+  onSearch: (requestBody: any) => void
+}
+
+export default function SearchBar({ onSearch }: SearchBarProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [filterOptions, setFilterOptions] = useState<FilterOption[]>([
     { id: "bfs", label: "BFS", checked: true },
@@ -45,8 +49,6 @@ export default function SearchBar() {
       })
     )
   }
-  
-  
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault() // Prevent default form submission behavior
@@ -55,8 +57,21 @@ export default function SearchBar() {
 
     console.log("Searching for:", searchQuery)
     console.log("With filters:", activeFilters)
-    // Here you would typically call your search function with these parameters
+
+    const selectedMethod = filterOptions.find(f => (f.id === "bfs" || f.id === "dfs") && f.checked)?.id || "dfs"
+    const threading = filterOptions.find(f => f.id === "multi" && f.checked) ? "multi" : "single"
+
+    const requestBody = {
+      element: Number(searchQuery) || 1,
+      method: selectedMethod,
+      count: 1,
+      delay: 20,
+      threading: threading
+    }
+
+    onSearch(requestBody)
   }
+    // Here you would typically call your search function with these parameters
 
   return (
     <form onSubmit={handleSearch} className="flex w-full max-w-lg items-center space-x-2 text-white">
