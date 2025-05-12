@@ -1,17 +1,32 @@
 services:
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8080:8080
   database:
     image: postgres
+    restart: always
     environment:
+      - POSTGRES_USER=${DATABASE_ROOT_USER}
       - POSTGRES_PASSWORD=${DATABASE_ROOT_PASSWORD}
+      - POSTGRES_DB=${DATABASE_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
   backend:
     image: tubes2-gitulah/backend
     pull_policy: never
     build: ./src/backend
+    restart: always
     environment:
       - DATABASE_ADDRESS=${DATABASE_ADDRESS}
+      - DATABASE_USER=${DATABASE_ROOT_USER}
       - DATABASE_PASSWORD=${DATABASE_ROOT_PASSWORD}
+      - DATABASE_DB=${DATABASE_DB}
     depends_on:
       - database
+    ports:
+      - 5761:5761
 #  frontend:
 #    image: tubes2-gitulah/frontend
 #    pull_policy: never
@@ -20,3 +35,5 @@ services:
 #      - ${FRONTEND_HOST_PORT}:80
 #    depends_on:
 #      - backend
+volumes:
+  pgdata:
