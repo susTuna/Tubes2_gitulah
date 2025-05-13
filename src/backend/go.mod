@@ -2,10 +2,7 @@ module github.com/filbertengyo/Tubes2_gitulah
 
 go 1.24.2
 
-require (
-	github.com/go-chi/chi/v5 v5.2.1
-	github.com/jackc/pgx/v5 v5.7.4
-)
+require github.com/jackc/pgx/v5 v5.7.4
 
 require (
 	github.com/PuerkitoBio/goquery v1.10.3 // indirect

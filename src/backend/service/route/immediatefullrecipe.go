@@ -2,60 +2,52 @@ package route
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"time"
 
-	"github.com/filbertengyo/Tubes2_gitulah/database"
+	"fmt"
+
 	"github.com/filbertengyo/Tubes2_gitulah/schema"
 	"github.com/filbertengyo/Tubes2_gitulah/service/findfullrecipe"
 )
 
 func ImmediateFullRecipe(w http.ResponseWriter, r *http.Request) {
-	var request schema.SearchRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		w.WriteHeader(http.StatusBadGateway)
-		return
-	}
-
-	if !request.Valid() {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	element, err := database.FindElementById(request.Element)
+	resp, err := http.Post("http://localhost:5761/fullrecipe/", "application/json", r.Body)
 
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(resp.StatusCode)
 		return
 	}
 
-	var response schema.SearchResponse
+	var searchResponse schema.SearchResponse
+	err = json.NewDecoder(resp.Body).Decode(&searchResponse)
+	resp.Body.Close()
 
-	if request.Method == "dfs" && request.Threading == "single" {
-		response.SearchID = findfullrecipe.WithSinglethreadedDFS(element, request.Count, request.Delay)
-	} else if request.Method == "dfs" && request.Threading == "multi" {
-		response.SearchID = -1
-	} else if request.Method == "bfs" && request.Threading == "single" {
-		response.SearchID = findfullrecipe.WithSinglethreadedBFS(element, request.Count, request.Delay)
-	} else if request.Method == "bfs" && request.Threading == "multi" {
-		response.SearchID = -1
-	} else {
-		w.WriteHeader(http.StatusNotImplemented)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	searchResult := findfullrecipe.FindSearch(int(response.SearchID))
+	for !findfullrecipe.FindSearch(searchResponse.SearchID).Finished {
+		time.Sleep(1 * time.Millisecond)
+	}
 
-	if searchResult == nil {
-		w.WriteHeader(http.StatusNotFound)
+	resp, err = http.Get("http://localhost:5761/fullrecipe/" + fmt.Sprint(searchResponse.SearchID))
+
+	if err != nil {
+		w.WriteHeader(resp.StatusCode)
 		return
 	}
 
-	for !searchResult.Finished {
-		time.Sleep(time.Millisecond * 1)
+	body, err := io.ReadAll(resp.Body)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Add("Content-Type", "application/json")
-	w.Write([]byte(searchResult.Serialize()))
+	w.Write(body)
 }

@@ -19,10 +19,14 @@ func updateRecipeCounts(node *schema.SearchNode) {
 
 	for i := 0; i < len(result.Dependencies); i++ {
 		result.Dependencies[i].Ingredient1.RLock()
-		result.Dependencies[i].Ingredient2.RLock()
-		recipeCount += result.Dependencies[i].Ingredient1.RecipesFound * result.Dependencies[i].Ingredient2.RecipesFound
-		result.Dependencies[i].Ingredient2.RUnlock()
+		recipeCount1 := result.Dependencies[i].Ingredient1.RecipesFound
 		result.Dependencies[i].Ingredient1.RUnlock()
+
+		result.Dependencies[i].Ingredient2.RLock()
+		recipeCount2 := result.Dependencies[i].Ingredient2.RecipesFound
+		result.Dependencies[i].Ingredient2.RUnlock()
+
+		recipeCount += recipeCount1 * recipeCount2
 	}
 
 	result.RecipesFound = recipeCount
