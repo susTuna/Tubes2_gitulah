@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Details from "@/components/details/details"
 import SearchBar from "@/components/searchbar/searchbar"
 import RecipeTree from "@/components/recipetree/tree"
 import { fetchElementInfo } from "@/util/parser/parser"
@@ -8,9 +9,9 @@ import { fetchElementInfo } from "@/util/parser/parser"
 export default function Page() {
   const [recipeData, setRecipeData] = useState(null)
 
-  const handleSearch = async (requestBody: any) => {
+  const handleSearch = async (requestBody: unknown) => {
     try {
-      const response = await fetch("http://localhost:5761/fullrecipe/", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_PUBLIC_API_URL}/fullrecipe/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -32,7 +33,7 @@ export default function Page() {
   const pollRecipeData = async (searchId: number) => {
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(`http://localhost:5761/fullrecipe/${searchId}`)
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_PUBLIC_API_URL}/fullrecipe/${searchId}`)
         if (!response.ok) throw new Error("Failed to fetch recipe data")
   
         const data = await response.json()
@@ -54,13 +55,14 @@ export default function Page() {
   
 
   return (
-    <div className="bg-hero-pattern bg-center bg-black bg-blend-darken bg-opacity-70 flex min-h-screen flex-col items-center justify-start pt-10 gap-8">
+    <div className="bg-hero-pattern bg-center bg-black bg-blend-darken bg-opacity-70 flex min-h-screen flex-col items-center justify-start pt-8 gap-8">
       <div className="flex flex-col items-center h-1/4">
         <h1 className="text-6xl font-bold text-white mb-4">
           Little Alchemy 2 Recipe Finder
         </h1>
       </div>
       <SearchBar onSearch={handleSearch} />
+      {recipeData && <Details searchResults={recipeData} />}
       {recipeData && <RecipeTree recipeJson={recipeData} />}
     </div>
   )
