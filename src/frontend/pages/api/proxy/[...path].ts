@@ -1,29 +1,29 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import httpProxy from 'http-proxy'
+import { createProxyMiddleware } from 'http-proxy-middleware'
 
 export const config = {
   api: {
-    bodyParser: false, // Needed for streaming the body directly
+    bodyParser: false, // Required for streaming body
     externalResolver: true,
   },
 }
 
-const proxy = httpProxy.createProxyServer()
+const proxy = createProxyMiddleware({
+  target: process.env.BACKEND_PUBLIC_API_URL,
+  changeOrigin: true,
+  secure: false,
+  pathRewrite: { '^/api/proxy': '' }, // This will strip '/api/proxy' from the request URL
+})
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  return new Promise<void>((resolve, reject) => {
-    proxy.web(req, res, {
-      target: process.env.BACKEND_PUBLIC_API_URL,
-      changeOrigin: true,
-      ignorePath: false,
-      secure: false,
-    })
+  if (!process.env.BACKEND_PUBLIC_API_URL) {
+    return res.status(500).json({ error: 'Backend URL is not configured' })
+  }
 
-    proxy.once('proxyRes', () => resolve())
-    proxy.once('error', (err) => reject(err))
-    console.log("Proxying to:", `${process.env.BACKEND_PUBLIC_API_URL}${req.url?.replace('/api/proxy', '')}`)
+  console.log("Proxying to:", `${process.env.BACKEND_PUBLIC_API_URL}${req.url?.replace('/api/proxy', '')}`)
 
-  })
+  // Call the proxy middleware to forward the request
+  return proxy(req, res)
 }
 
 export const fetchFromBackend = async (path: string, options?: RequestInit) => {
