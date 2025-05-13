@@ -1,6 +1,7 @@
 package findfullrecipe
 
 import (
+	"sync"
 	"time"
 
 	"github.com/filbertengyo/Tubes2_gitulah/database"
@@ -40,9 +41,15 @@ func WithMultithreadedBFS(element schema.Element, count int, delay int) int {
 		jobs := make(chan searchJob, 100)
 		results := make(chan bool, 100)
 		done := make(chan bool)
+		quit := make(chan bool)
 
+		var wg sync.WaitGroup
 		for i := 0; i < numWorkers; i++ {
-			go worker(search, jobs, results)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				worker(search, jobs, results, quit)
+			}()
 		}
 
 		go func() {
@@ -52,14 +59,20 @@ func WithMultithreadedBFS(element schema.Element, count int, delay int) int {
 				delay: delay,
 			}
 
+			timeout := time.After(30 * time.Second)
 			for {
 				select {
 				case <-results:
+					search.Root.RLock()
 					if search.Root.RecipesFound >= count {
+						close(quit)
 						done <- true
+						search.Root.RUnlock()
 						return
 					}
-				case <-time.After(2 * time.Second):
+					search.Root.RUnlock()
+				case <-timeout:
+					close(quit)
 					done <- true
 					return
 				}
@@ -67,6 +80,8 @@ func WithMultithreadedBFS(element schema.Element, count int, delay int) int {
 		}()
 
 		<-done
+		wg.Wait()
+
 		close(jobs)
 		close(results)
 
@@ -81,16 +96,30 @@ func WithMultithreadedBFS(element schema.Element, count int, delay int) int {
 	return searchID
 }
 
-func worker(result *schema.SearchResult, jobs chan searchJob, results chan bool) {
-	for job := range jobs {
-		processNode(result, job.node, job.count, job.delay, jobs, results)
+func worker(result *schema.SearchResult, jobs chan searchJob, results chan bool, quit chan bool) {
+	for {
+		select {
+		case job, ok := <-jobs:
+			if !ok {
+				return
+			}
+			processNode(result, job.node, job.count, job.delay, jobs, results, quit)
+		case <-quit:
+			return
+		}
 	}
 }
 
-func processNode(result *schema.SearchResult, node *schema.SearchNode, count int, delay int, jobs chan searchJob, results chan bool) {
+func processNode(result *schema.SearchResult, node *schema.SearchNode, count int, delay int, jobs chan searchJob, results chan bool, quit chan bool) {
 	recipes, err := database.FindRecipeFor(int(node.Element.ID))
 	if err != nil {
-		results <- false
+		select {
+		case results <- false:
+		case <-quit:
+			return
+		default:
+			return
+		}
 		return
 	}
 
@@ -99,15 +128,30 @@ func processNode(result *schema.SearchResult, node *schema.SearchNode, count int
 		node.RecipesFound = 1
 		node.Unlock()
 		updateRecipeCounts(node)
-		results <- true
+		select {
+		case results <- true:
+		case <-quit:
+			return
+		default:
+			return
+		}
 		return
 	}
 
 	for _, recipe := range recipes {
+		select {
+		case <-quit:
+			return
+		default:
+		}
+
 		result.Root.RLock()
 		if result.Root.RecipesFound >= count {
 			result.Root.RUnlock()
-			results <- true
+			select {
+			case results <- true:
+			default:
+			}
 			return
 		}
 		result.Root.RUnlock()
@@ -136,19 +180,38 @@ func processNode(result *schema.SearchResult, node *schema.SearchNode, count int
 		node.Dependencies = append(node.Dependencies, &combination)
 		node.Unlock()
 
-		jobs <- searchJob{
+		select {
+		case jobs <- searchJob{
 			node:  combination.Ingredient1,
 			count: count,
 			delay: delay,
+		}:
+		case <-quit:
+			return
+		default:
+			continue
 		}
-		jobs <- searchJob{
+
+		select {
+		case jobs <- searchJob{
 			node:  combination.Ingredient2,
 			count: count,
 			delay: delay,
+		}:
+		case <-quit:
+			return
+		default:
+			continue
 		}
 	}
 
-	results <- true
+	select {
+	case results <- true:
+	case <-quit:
+		return
+	default:
+		return
+	}
 }
 
 func singlethreadedBFS(result *schema.SearchResult, count int, delay int) {
