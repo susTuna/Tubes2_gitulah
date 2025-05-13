@@ -30,7 +30,11 @@ func WithMultithreadedBFS(element schema.Element, count int, delay int) int {
 	go func() {
 		start := time.Now()
 
-		singlethreadedBFS(search, count, delay)
+		done := make(chan bool)
+
+		go bfssearchhandle(search, search.Root, count, delay, done)
+		<-done
+		cleanupInvalidCombinations(search.Root)
 
 		search.Lock()
 		search.TimeTaken = int(time.Since(start).Milliseconds())
@@ -137,4 +141,132 @@ func singlethreadedBFS(result *schema.SearchResult, count int, delay int) {
 
 		nodes = nextNodes
 	}
+}
+
+func bfssearchhandle(result *schema.SearchResult, node *schema.SearchNode, count int, delay int, done chan bool) {
+	defer func() {
+		done <- true
+	}()
+	recipes, err := database.FindRecipeFor(int(node.Element.ID))
+	if err != nil {
+		return
+	}
+
+	if len(recipes) == 0 {
+		node.Lock()
+		node.RecipesFound = 1
+		node.Unlock()
+		updateRecipeCounts(node)
+		return
+	}
+
+	for _, recipe := range recipes {
+		checkDone := make(chan bool, 1)
+		go func() {
+			result.Root.RLock()
+			if result.Root.RecipesFound >= count {
+				checkDone <- true
+			} else {
+				checkDone <- false
+			}
+			result.Root.RUnlock()
+		}()
+
+		select {
+		case isDone := <-checkDone:
+			if isDone {
+				return
+			}
+		case <-time.After(100 * time.Millisecond):
+		}
+
+		time.Sleep(time.Duration(delay) * time.Millisecond)
+
+		updateDone := make(chan bool, 1)
+		go func() {
+			result.Lock()
+			result.NodesSearched++
+			result.Unlock()
+			updateDone <- true
+		}()
+
+		select {
+		case <-updateDone:
+		case <-time.After(100 * time.Millisecond):
+		}
+
+		// Get ingredients
+		ingredient1, err1 := database.FindElementById(int(recipe.Dependency1ID))
+		ingredient2, err2 := database.FindElementById(int(recipe.Dependency2ID))
+		if err1 != nil || err2 != nil {
+			continue
+		}
+
+		combination := schema.Combination{
+			Result:      node,
+			Ingredient1: &schema.SearchNode{Element: ingredient1},
+			Ingredient2: &schema.SearchNode{Element: ingredient2},
+		}
+		combination.Ingredient1.Parent = &combination
+		combination.Ingredient2.Parent = &combination
+
+		nodeLockDone := make(chan bool, 1)
+		go func() {
+			node.Lock()
+			node.Dependencies = append(node.Dependencies, &combination)
+			node.Unlock()
+			nodeLockDone <- true
+		}()
+
+		select {
+		case <-nodeLockDone:
+		case <-time.After(100 * time.Millisecond):
+		}
+
+		done1 := make(chan bool, 1)
+		done2 := make(chan bool, 1)
+
+		go func() {
+			bfssearchhandle(result, combination.Ingredient1, count, delay, done1)
+		}()
+		go func() {
+			bfssearchhandle(result, combination.Ingredient2, count, delay, done2)
+		}()
+
+		select {
+		case <-done1:
+		case <-time.After(5 * time.Second):
+		}
+
+		select {
+		case <-done2:
+		case <-time.After(5 * time.Second):
+		}
+	}
+}
+
+func cleanupInvalidCombinations(node *schema.SearchNode) {
+	node.RLock()
+	if node.RecipesFound == 0 {
+		if node.Parent != nil {
+			result := node.Parent.Result
+			combination := node.Parent
+
+			result.Lock()
+			newDeps := []*schema.Combination{}
+			for _, dep := range result.Dependencies {
+				if dep != combination {
+					newDeps = append(newDeps, dep)
+				}
+			}
+			result.Dependencies = newDeps
+			result.Unlock()
+		}
+	} else {
+		for _, combination := range node.Dependencies {
+			cleanupInvalidCombinations(combination.Ingredient1)
+			cleanupInvalidCombinations(combination.Ingredient2)
+		}
+	}
+	node.RUnlock()
 }
