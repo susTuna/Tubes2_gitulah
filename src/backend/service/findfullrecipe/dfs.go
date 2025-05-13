@@ -125,13 +125,15 @@ func multithreadedDFS(result *schema.SearchResult, node *schema.SearchNode, chan
 
 	if len(recipes) == 0 {
 		node.RecipesFound = 1
-		<-channels.redistribute
-		channels.finish <- node.RecipesFound
-		select {
-		case <-channels.redistribute:
-			channels.finish <- node.RecipesFound
-			<-channels.close
-		case <-channels.close:
+
+		ok := true
+		for ok {
+			select {
+			case <-channels.redistribute:
+				channels.finish <- node.RecipesFound
+			case <-channels.close:
+				ok = false
+			}
 		}
 		return
 	}
@@ -220,11 +222,14 @@ func multithreadedDFS(result *schema.SearchResult, node *schema.SearchNode, chan
 
 		channels.finish <- node.RecipesFound
 		if len(recipes) == len(node.Dependencies) {
-			select {
-			case <-channels.redistribute:
-				channels.finish <- node.RecipesFound
-				<-channels.close
-			case <-channels.close:
+			ok := true
+			for ok {
+				select {
+				case <-channels.redistribute:
+					channels.finish <- node.RecipesFound
+				case <-channels.close:
+					ok = false
+				}
 			}
 			return
 		}
