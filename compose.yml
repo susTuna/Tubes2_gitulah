@@ -1,9 +1,12 @@
+version: "3.8"
+
 services:
   adminer:
     image: adminer
     restart: always
     ports:
       - 8080:8080
+
   database:
     image: postgres
     restart: always
@@ -13,27 +16,37 @@ services:
       - POSTGRES_DB=${DATABASE_DB}
     volumes:
       - pgdata:/var/lib/postgresql/data
+
   backend:
     image: tubes2-gitulah/backend
-    pull_policy: never
-    build: ./src/backend
+    build:
+      context: ./src/backend
     restart: always
     environment:
       - DATABASE_ADDRESS=${DATABASE_ADDRESS}
       - DATABASE_USER=${DATABASE_ROOT_USER}
       - DATABASE_PASSWORD=${DATABASE_ROOT_PASSWORD}
       - DATABASE_DB=${DATABASE_DB}
+      - BACKEND_HOST_PORT=${BACKEND_HOST_PORT}
+      - FRONTEND_PUBLIC_URL=${FRONTEND_PUBLIC_URL}
     depends_on:
       - database
     ports:
       - 5761:5761
-#  frontend:
-#    image: tubes2-gitulah/frontend
-#    pull_policy: never
-#    build: ./src/frontend
-#    ports:
-#      - ${FRONTEND_HOST_PORT}:80
-#    depends_on:
-#      - backend
+
+  frontend:
+    image: node:18
+    working_dir: /app
+    volumes:
+      - ./src/frontend:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run dev"
+    environment:
+      - NEXT_PUBLIC_BACKEND_PUBLIC_API_URL=${BACKEND_PUBLIC_API_URL}
+    ports:
+      - ${FRONTEND_HOST_PORT:-3000}:3000
+    depends_on:
+      - backend
+
 volumes:
   pgdata:
