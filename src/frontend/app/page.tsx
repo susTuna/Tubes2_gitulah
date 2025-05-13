@@ -8,9 +8,9 @@ import { fetchElementInfo } from "@/util/parser/parser"
 export default function Page() {
   const [recipeData, setRecipeData] = useState(null)
 
-  const handleSearch = async (requestBody: any) => {
+  const handleSearch = async (requestBody: unknown) => {
     try {
-      const response = await fetch("http://localhost:5761/fullrecipe/", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_PUBLIC_API_URL}/fullrecipe/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -32,7 +32,7 @@ export default function Page() {
   const pollRecipeData = async (searchId: number) => {
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(`http://localhost:5761/fullrecipe/${searchId}`)
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_PUBLIC_API_URL}/fullrecipe/${searchId}`)
         if (!response.ok) throw new Error("Failed to fetch recipe data")
   
         const data = await response.json()

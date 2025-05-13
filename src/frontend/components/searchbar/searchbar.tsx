@@ -21,7 +21,7 @@ interface FilterOption {
 }
 
 interface SearchBarProps {
-  onSearch: (requestBody: any) => void
+  onSearch: (requestBody: unknown) => void
 }
 
 interface Element {
@@ -70,7 +70,7 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
     const threading = filterOptions.find(f => f.id === "multi" && f.checked) ? "multi" : "single"
 
     try {
-      const response = await fetch(`http://localhost:5761/elements/${searchQuery}?type=name`)
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_PUBLIC_API_URL}/elements/${searchQuery}?type=name`)
       if (!response.ok) {
         throw new Error("Failed to fetch data from server")
       }

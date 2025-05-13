@@ -31,7 +31,7 @@ export interface FlowEdge {
   type: string;
   source: string;
   target: string;
-  style?: { [key: string]: any };
+  style?: { [key: string]: unknown };
 }
 
 export const edgeTypes = {
@@ -64,7 +64,7 @@ export const fetchElementInfo = async (
   await Promise.all(
     ids.map(async (id) => {
       try {
-        const res = await fetch(`http://localhost:5761/elements/${id}?type=id`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_PUBLIC_API_URL}/elements/${id}?type=id`);
         const data: ElementInfo = await res.json();
         map[id] = data;
       } catch (err) {

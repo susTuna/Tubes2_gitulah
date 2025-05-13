@@ -27,6 +27,8 @@ services:
       - DATABASE_USER=${DATABASE_ROOT_USER}
       - DATABASE_PASSWORD=${DATABASE_ROOT_PASSWORD}
       - DATABASE_DB=${DATABASE_DB}
+      - BACKEND_HOST_PORT=${BACKEND_HOST_PORT}
+      - FRONTEND_PUBLIC_URL=${FRONTEND_PUBLIC_URL}
     depends_on:
       - database
     ports:
@@ -39,6 +41,8 @@ services:
       - ./src/frontend:/app
       - /app/node_modules
     command: sh -c "npm install && npm run dev"
+    environment:
+      - NEXT_PUBLIC_BACKEND_PUBLIC_API_URL=${BACKEND_PUBLIC_API_URL}
     ports:
       - ${FRONTEND_HOST_PORT:-3000}:3000
     depends_on:

@@ -55,7 +55,9 @@ func main() {
 
 	handler := middleware.CORSMiddleware(http.DefaultServeMux)
 
-	if err := http.ListenAndServe(":5761", handler); err != nil {
+	port := os.Getenv("BACKEND_HOST_PORT")
+
+	if err := http.ListenAndServe(":" + port, handler); err != nil {
 		fmt.Println("An error occured!")
 		fmt.Println(err.Error())
 	}
