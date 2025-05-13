@@ -2,7 +2,7 @@
 import dagre from 'dagre';
 import StepEdge from '@/components/edges/stepedge';
 import ImageNode from '@/components/nodes/imagenode';
-import { fetchFromBackend } from '@/pages/api/proxy/proxy';
+import { fetchFromBackend } from '@/pages/api/proxy/[...path]';
 
 export interface RecipeJson {
   nodes: number[];

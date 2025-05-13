@@ -5,7 +5,7 @@ import Details from "@/components/details/details"
 import SearchBar from "@/components/searchbar/searchbar"
 import RecipeTree from "@/components/recipetree/tree"
 import { fetchElementInfo } from "@/util/parser/parser"
-import { fetchFromBackend } from "@/pages/api/proxy/proxy"
+import { fetchFromBackend } from "@/pages/api/proxy/[...path]"
 
 export default function Page() {
   const [recipeData, setRecipeData] = useState(null)
