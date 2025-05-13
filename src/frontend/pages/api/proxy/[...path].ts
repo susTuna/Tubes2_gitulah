@@ -21,6 +21,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
     proxy.once('proxyRes', () => resolve())
     proxy.once('error', (err) => reject(err))
+    console.log("Proxying to:", `${process.env.BACKEND_PUBLIC_API_URL}${req.url?.replace('/api/proxy', '')}`)
+
   })
 }
 
