@@ -7,6 +7,12 @@ import (
 	"github.com/filbertengyo/Tubes2_gitulah/schema"
 )
 
+type searchJob struct {
+	node  *schema.SearchNode
+	count int
+	delay int
+}
+
 func WithSinglethreadedBFS(element schema.Element, count int, delay int) int {
 	searchID, search := prepareSearch(element)
 
@@ -30,10 +36,40 @@ func WithMultithreadedBFS(element schema.Element, count int, delay int) int {
 	go func() {
 		start := time.Now()
 
+		numWorkers := 4
+		jobs := make(chan searchJob, 100)
+		results := make(chan bool, 100)
 		done := make(chan bool)
 
-		go bfssearchhandle(search, search.Root, count, delay, done)
+		for i := 0; i < numWorkers; i++ {
+			go worker(search, jobs, results)
+		}
+
+		go func() {
+			jobs <- searchJob{
+				node:  search.Root,
+				count: count,
+				delay: delay,
+			}
+
+			for {
+				select {
+				case <-results:
+					if search.Root.RecipesFound >= count {
+						done <- true
+						return
+					}
+				case <-time.After(2 * time.Second):
+					done <- true
+					return
+				}
+			}
+		}()
+
 		<-done
+		close(jobs)
+		close(results)
+
 		cleanupInvalidCombinations(search.Root)
 
 		search.Lock()
@@ -43,6 +79,76 @@ func WithMultithreadedBFS(element schema.Element, count int, delay int) int {
 	}()
 
 	return searchID
+}
+
+func worker(result *schema.SearchResult, jobs chan searchJob, results chan bool) {
+	for job := range jobs {
+		processNode(result, job.node, job.count, job.delay, jobs, results)
+	}
+}
+
+func processNode(result *schema.SearchResult, node *schema.SearchNode, count int, delay int, jobs chan searchJob, results chan bool) {
+	recipes, err := database.FindRecipeFor(int(node.Element.ID))
+	if err != nil {
+		results <- false
+		return
+	}
+
+	if len(recipes) == 0 {
+		node.Lock()
+		node.RecipesFound = 1
+		node.Unlock()
+		updateRecipeCounts(node)
+		results <- true
+		return
+	}
+
+	for _, recipe := range recipes {
+		result.Root.RLock()
+		if result.Root.RecipesFound >= count {
+			result.Root.RUnlock()
+			results <- true
+			return
+		}
+		result.Root.RUnlock()
+
+		time.Sleep(time.Duration(delay) * time.Millisecond)
+
+		result.Lock()
+		result.NodesSearched++
+		result.Unlock()
+
+		ingredient1, err1 := database.FindElementById(int(recipe.Dependency1ID))
+		ingredient2, err2 := database.FindElementById(int(recipe.Dependency2ID))
+		if err1 != nil || err2 != nil {
+			continue
+		}
+
+		combination := schema.Combination{
+			Result:      node,
+			Ingredient1: &schema.SearchNode{Element: ingredient1},
+			Ingredient2: &schema.SearchNode{Element: ingredient2},
+		}
+		combination.Ingredient1.Parent = &combination
+		combination.Ingredient2.Parent = &combination
+
+		node.Lock()
+		node.Dependencies = append(node.Dependencies, &combination)
+		node.Unlock()
+
+		jobs <- searchJob{
+			node:  combination.Ingredient1,
+			count: count,
+			delay: delay,
+		}
+		jobs <- searchJob{
+			node:  combination.Ingredient2,
+			count: count,
+			delay: delay,
+		}
+	}
+
+	results <- true
 }
 
 func singlethreadedBFS(result *schema.SearchResult, count int, delay int) {
@@ -140,108 +246,6 @@ func singlethreadedBFS(result *schema.SearchResult, count int, delay int) {
 		}
 
 		nodes = nextNodes
-	}
-}
-
-func bfssearchhandle(result *schema.SearchResult, node *schema.SearchNode, count int, delay int, done chan bool) {
-	defer func() {
-		done <- true
-	}()
-	recipes, err := database.FindRecipeFor(int(node.Element.ID))
-	if err != nil {
-		return
-	}
-
-	if len(recipes) == 0 {
-		node.Lock()
-		node.RecipesFound = 1
-		node.Unlock()
-		updateRecipeCounts(node)
-		return
-	}
-
-	for _, recipe := range recipes {
-		checkDone := make(chan bool, 1)
-		go func() {
-			result.Root.RLock()
-			if result.Root.RecipesFound >= count {
-				checkDone <- true
-			} else {
-				checkDone <- false
-			}
-			result.Root.RUnlock()
-		}()
-
-		select {
-		case isDone := <-checkDone:
-			if isDone {
-				return
-			}
-		case <-time.After(100 * time.Millisecond):
-		}
-
-		time.Sleep(time.Duration(delay) * time.Millisecond)
-
-		updateDone := make(chan bool, 1)
-		go func() {
-			result.Lock()
-			result.NodesSearched++
-			result.Unlock()
-			updateDone <- true
-		}()
-
-		select {
-		case <-updateDone:
-		case <-time.After(100 * time.Millisecond):
-		}
-
-		// Get ingredients
-		ingredient1, err1 := database.FindElementById(int(recipe.Dependency1ID))
-		ingredient2, err2 := database.FindElementById(int(recipe.Dependency2ID))
-		if err1 != nil || err2 != nil {
-			continue
-		}
-
-		combination := schema.Combination{
-			Result:      node,
-			Ingredient1: &schema.SearchNode{Element: ingredient1},
-			Ingredient2: &schema.SearchNode{Element: ingredient2},
-		}
-		combination.Ingredient1.Parent = &combination
-		combination.Ingredient2.Parent = &combination
-
-		nodeLockDone := make(chan bool, 1)
-		go func() {
-			node.Lock()
-			node.Dependencies = append(node.Dependencies, &combination)
-			node.Unlock()
-			nodeLockDone <- true
-		}()
-
-		select {
-		case <-nodeLockDone:
-		case <-time.After(100 * time.Millisecond):
-		}
-
-		done1 := make(chan bool, 1)
-		done2 := make(chan bool, 1)
-
-		go func() {
-			bfssearchhandle(result, combination.Ingredient1, count, delay, done1)
-		}()
-		go func() {
-			bfssearchhandle(result, combination.Ingredient2, count, delay, done2)
-		}()
-
-		select {
-		case <-done1:
-		case <-time.After(5 * time.Second):
-		}
-
-		select {
-		case <-done2:
-		case <-time.After(5 * time.Second):
-		}
 	}
 }
 
