@@ -38,7 +38,7 @@ func WithMultithreadedDFS(element schema.Element, count int, delay int) int {
 			close:        make(chan bool),
 		}
 
-		multithreadedDFS(search, search.Root, channels, delay)
+		go multithreadedDFS(search, search.Root, channels, delay)
 
 		<-channels.ready
 		channels.redistribute <- count
