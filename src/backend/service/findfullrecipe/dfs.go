@@ -1,7 +1,6 @@
 package findfullrecipe
 
 import (
-	"fmt"
 	"math"
 	"time"
 
@@ -120,38 +119,27 @@ func multithreadedDFS(result *schema.SearchResult, node *schema.SearchNode, chan
 	channels.ready <- true
 	quota := <-channels.redistribute
 
-	fmt.Printf("%p enter\n", node)
-
 	if len(recipes) == 0 {
 		node.RecipesFound = 1
 		channels.finish <- node.RecipesFound
 
-		fmt.Printf("%p leaf\n", node)
 		ok := true
 		for ok {
 			select {
 			case <-channels.redistribute:
 				channels.finish <- node.RecipesFound
-				fmt.Printf("%p end\n", node)
 			case <-channels.close:
-				fmt.Printf("%p leave\n", node)
 				ok = false
 			}
 		}
 		return
 	}
 
-	fmt.Printf("%p iter: %d\n", node, quota)
-
 	for node.RecipesFound >= quota {
 		channels.finish <- node.RecipesFound
-
-		fmt.Printf("%p wait\n", node)
 		select {
 		case quota = <-channels.redistribute:
-			fmt.Printf("%p iter: %d\n", node, quota)
 		case <-channels.close:
-			fmt.Printf("%p leave\n", node)
 			return
 		}
 	}
@@ -234,17 +222,14 @@ func multithreadedDFS(result *schema.SearchResult, node *schema.SearchNode, chan
 
 			channels.finish <- node.RecipesFound
 
-			fmt.Printf("%p wait\n", node)
 			select {
 			case quota = <-channels.redistribute:
-				fmt.Printf("%p iter: %d\n", node, quota)
 				node.Lock()
 				node.RecipesFound -= leftFound * rightFound
 				node.Unlock()
 			case <-channels.close:
 				leftChannels.close <- true
 				rightChannels.close <- true
-				fmt.Printf("%p leave\n", node)
 				return
 			}
 		}
@@ -256,7 +241,6 @@ func multithreadedDFS(result *schema.SearchResult, node *schema.SearchNode, chan
 	}
 	node.RUnlock()
 
-	fmt.Printf("%p over\n", node)
 	channels.finish <- node.RecipesFound
 
 	ok := true
@@ -264,9 +248,7 @@ func multithreadedDFS(result *schema.SearchResult, node *schema.SearchNode, chan
 		select {
 		case <-channels.redistribute:
 			channels.finish <- node.RecipesFound
-			fmt.Printf("%p end\n", node)
 		case <-channels.close:
-			fmt.Printf("%p leave\n", node)
 			ok = false
 		}
 	}
