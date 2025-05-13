@@ -1,6 +1,7 @@
 package findfullrecipe
 
 import (
+	"fmt"
 	"math"
 	"time"
 
@@ -68,7 +69,7 @@ func singlethreadedDFS(result *schema.SearchResult, node *schema.SearchNode, cou
 	}
 
 	node.RLock()
-	for i := 0; i < len(recipes) && count > 0; i++ {
+	for i := 0; i < len(recipes) && node.RecipesFound < count; i++ {
 		node.RUnlock()
 
 		result.Lock()
@@ -97,8 +98,6 @@ func singlethreadedDFS(result *schema.SearchResult, node *schema.SearchNode, cou
 
 		singlethreadedDFS(result, combination.Ingredient2, adjacentCount, delay)
 
-		count -= combination.Ingredient1.RecipesFound * combination.Ingredient2.RecipesFound
-
 		node.RLock()
 	}
 	node.RUnlock()
@@ -118,82 +117,98 @@ func multithreadedDFS(result *schema.SearchResult, node *schema.SearchNode, chan
 	recipes, _ := database.FindRecipeFor(int(node.Element.ID))
 	node.RUnlock()
 
-	quota := 1
-	i := 0
-
 	channels.ready <- true
+	quota := <-channels.redistribute
+
+	fmt.Printf("%p enter\n", node)
 
 	if len(recipes) == 0 {
 		node.RecipesFound = 1
+		channels.finish <- node.RecipesFound
 
+		fmt.Printf("%p leaf\n", node)
 		ok := true
 		for ok {
 			select {
 			case <-channels.redistribute:
 				channels.finish <- node.RecipesFound
+				fmt.Printf("%p end\n", node)
 			case <-channels.close:
+				fmt.Printf("%p leave\n", node)
 				ok = false
 			}
 		}
 		return
 	}
 
-	for node.RecipesFound < quota {
+	fmt.Printf("%p iter: %d\n", node, quota)
+
+	for node.RecipesFound >= quota {
+		channels.finish <- node.RecipesFound
+
+		fmt.Printf("%p wait\n", node)
 		select {
 		case quota = <-channels.redistribute:
+			fmt.Printf("%p iter: %d\n", node, quota)
 		case <-channels.close:
+			fmt.Printf("%p leave\n", node)
 			return
 		}
+	}
 
-		node.RLock()
-		for ; i < len(recipes) && node.RecipesFound < quota; i++ {
+	node.RLock()
+	for i := 0; i < len(recipes); i++ {
+		node.RUnlock()
+
+		result.Lock()
+		result.NodesSearched++
+		result.Unlock()
+
+		ingredient1, _ := database.FindElementById(int(recipes[i].Dependency1ID))
+		ingredient2, _ := database.FindElementById(int(recipes[i].Dependency2ID))
+		combination := schema.Combination{
+			Result:      node,
+			Ingredient1: &schema.SearchNode{Element: ingredient1},
+			Ingredient2: &schema.SearchNode{Element: ingredient2},
+		}
+		combination.Ingredient1.Parent = &combination
+		combination.Ingredient2.Parent = &combination
+
+		node.Lock()
+		node.Dependencies = append(node.Dependencies, &combination)
+		node.Unlock()
+
+		leftChannels := multiDFSChannels{
+			ready:        make(chan bool),
+			finish:       make(chan int),
+			redistribute: make(chan int),
+			close:        make(chan bool),
+		}
+
+		rightChannels := multiDFSChannels{
+			ready:        make(chan bool),
+			finish:       make(chan int),
+			redistribute: make(chan int),
+			close:        make(chan bool),
+		}
+
+		go multithreadedDFS(result, combination.Ingredient1, leftChannels, delay)
+		go multithreadedDFS(result, combination.Ingredient2, rightChannels, delay)
+
+		<-leftChannels.ready
+		<-rightChannels.ready
+
+		for {
+			node.RLock()
+			leftDistribution := int(math.Ceil(math.Sqrt(float64(quota - node.RecipesFound))))
 			node.RUnlock()
 
-			result.Lock()
-			result.NodesSearched++
-			result.Unlock()
+			rightDistribution := quota / leftDistribution
 
-			ingredient1, _ := database.FindElementById(int(recipes[i].Dependency1ID))
-			ingredient2, _ := database.FindElementById(int(recipes[i].Dependency2ID))
-			combination := schema.Combination{
-				Result:      node,
-				Ingredient1: &schema.SearchNode{Element: ingredient1},
-				Ingredient2: &schema.SearchNode{Element: ingredient2},
-			}
-			combination.Ingredient1.Parent = &combination
-			combination.Ingredient2.Parent = &combination
+			ldr := leftDistribution
+			rdr := rightDistribution
 
-			node.Lock()
-			node.Dependencies = append(node.Dependencies, &combination)
-			node.Unlock()
-
-			leftChannels := multiDFSChannels{
-				ready:        make(chan bool),
-				finish:       make(chan int),
-				redistribute: make(chan int),
-				close:        make(chan bool),
-			}
-
-			rightChannels := multiDFSChannels{
-				ready:        make(chan bool),
-				finish:       make(chan int),
-				redistribute: make(chan int),
-				close:        make(chan bool),
-			}
-
-			go multithreadedDFS(result, combination.Ingredient1, leftChannels, delay)
-			go multithreadedDFS(result, combination.Ingredient2, rightChannels, delay)
-
-			leftDistribution := math.Sqrt(float64(quota))
-			rightDistribution := float64(quota) / leftDistribution
-
-			ldr := int(math.Ceil(leftDistribution))
-			rdr := int(math.Ceil(rightDistribution))
-
-			<-leftChannels.ready
 			leftChannels.redistribute <- ldr
-
-			<-rightChannels.ready
 			rightChannels.redistribute <- rdr
 
 			leftFound := <-leftChannels.finish
@@ -209,29 +224,50 @@ func multithreadedDFS(result *schema.SearchResult, node *schema.SearchNode, chan
 				leftFound = <-leftChannels.finish
 			}
 
-			leftChannels.close <- true
-			rightChannels.close <- true
-
 			node.Lock()
 			node.RecipesFound += leftFound * rightFound
 			node.Unlock()
 
-			node.RLock()
-		}
-		node.RUnlock()
-
-		channels.finish <- node.RecipesFound
-		if len(recipes) == len(node.Dependencies) {
-			ok := true
-			for ok {
-				select {
-				case <-channels.redistribute:
-					channels.finish <- node.RecipesFound
-				case <-channels.close:
-					ok = false
-				}
+			if leftFound < ldr && rightFound < rdr {
+				break
 			}
-			return
+
+			channels.finish <- node.RecipesFound
+
+			fmt.Printf("%p wait\n", node)
+			select {
+			case quota = <-channels.redistribute:
+				fmt.Printf("%p iter: %d\n", node, quota)
+				node.Lock()
+				node.RecipesFound -= leftFound * rightFound
+				node.Unlock()
+			case <-channels.close:
+				leftChannels.close <- true
+				rightChannels.close <- true
+				fmt.Printf("%p leave\n", node)
+				return
+			}
+		}
+
+		leftChannels.close <- true
+		rightChannels.close <- true
+
+		node.RLock()
+	}
+	node.RUnlock()
+
+	fmt.Printf("%p over\n", node)
+	channels.finish <- node.RecipesFound
+
+	ok := true
+	for ok {
+		select {
+		case <-channels.redistribute:
+			channels.finish <- node.RecipesFound
+			fmt.Printf("%p end\n", node)
+		case <-channels.close:
+			fmt.Printf("%p leave\n", node)
+			ok = false
 		}
 	}
 }
