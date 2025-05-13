@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os"
 	"time"
 
 	"fmt"
@@ -13,7 +14,9 @@ import (
 )
 
 func ImmediateFullRecipe(w http.ResponseWriter, r *http.Request) {
-	resp, err := http.Post("http://localhost:5761/fullrecipe/", "application/json", r.Body)
+	port := os.Getenv("BACKEND_HOST_PORT")
+
+	resp, err := http.Post(fmt.Sprintf("http://localhost:%s/fullrecipe/", port), "application/json", r.Body)
 
 	if err != nil {
 		w.WriteHeader(resp.StatusCode)
@@ -33,7 +36,7 @@ func ImmediateFullRecipe(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(1 * time.Millisecond)
 	}
 
-	resp, err = http.Get("http://localhost:5761/fullrecipe/" + fmt.Sprint(searchResponse.SearchID))
+	resp, err = http.Get(fmt.Sprintf("http://localhost:%s/fullrecipe/", port) + fmt.Sprint(searchResponse.SearchID))
 
 	if err != nil {
 		w.WriteHeader(resp.StatusCode)
