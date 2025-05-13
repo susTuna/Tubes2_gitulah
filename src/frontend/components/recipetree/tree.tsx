@@ -4,11 +4,7 @@ import ReactFlow from 'reactflow';
 import 'reactflow/dist/style.css';
 import { parseRecipeJson, RecipeJson, edgeTypes, nodeTypes } from '@/util/parser/parser';
 
-interface RecipeTreeProps {
-  recipeJson: RecipeJson;
-}
-
-const RecipeTree: React.FC<RecipeTreeProps> = ({ recipeJson }) => {
+export default function RecipeTree({ recipeJson } : { recipeJson : RecipeJson}) {
   const { flowNodes, flowEdges } = parseRecipeJson(recipeJson);
 
   return (
@@ -18,5 +14,3 @@ const RecipeTree: React.FC<RecipeTreeProps> = ({ recipeJson }) => {
     </div>
   );
 };
-
-export default RecipeTree;
