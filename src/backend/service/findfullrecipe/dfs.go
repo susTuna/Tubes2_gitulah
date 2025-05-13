@@ -93,6 +93,9 @@ func singlethreadedDFS(result *schema.SearchResult, node *schema.SearchNode, cou
 
 		combination.Ingredient1.RLock()
 		adjacentCount := max(count/combination.Ingredient1.RecipesFound, 1)
+		if count%combination.Ingredient1.RecipesFound > 0 && count/combination.Ingredient1.RecipesFound > 0 {
+			adjacentCount++
+		}
 		combination.Ingredient1.RUnlock()
 
 		singlethreadedDFS(result, combination.Ingredient2, adjacentCount, delay)
@@ -192,6 +195,9 @@ func multithreadedDFS(result *schema.SearchResult, node *schema.SearchNode, chan
 			node.RUnlock()
 
 			rightDistribution := quota / leftDistribution
+			if quota%leftDistribution > 0 {
+				rightDistribution++
+			}
 
 			ldr := leftDistribution
 			rdr := rightDistribution
@@ -204,10 +210,16 @@ func multithreadedDFS(result *schema.SearchResult, node *schema.SearchNode, chan
 
 			if leftFound < ldr && rightFound >= rdr {
 				rdr = quota / leftFound
+				if quota%leftFound > 0 {
+					rdr++
+				}
 				rightChannels.redistribute <- rdr
 				rightFound = <-rightChannels.finish
 			} else if rightFound < rdr && leftFound >= ldr {
 				ldr = quota / rightFound
+				if quota%rightFound > 0 {
+					ldr++
+				}
 				leftChannels.redistribute <- ldr
 				leftFound = <-leftChannels.finish
 			}
