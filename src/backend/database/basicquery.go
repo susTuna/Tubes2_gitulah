@@ -112,3 +112,24 @@ func FindRecipeFor(elementID int) ([]schema.Recipe, error) {
 
 	return recipes, err
 }
+
+func FindRecipesUsingElement(elementID int) ([]schema.Recipe, error) {
+	recipes := []schema.Recipe{}
+
+	queryResult, err := Query(`SELECT * FROM Recipes WHERE dependency1_id=$1 OR dependency2_id=$1`, elementID)
+	if err != nil {
+		return recipes, err
+	}
+
+	var i, j, k int32
+	_, err = pgx.ForEachRow(queryResult, []any{&i, &j, &k}, func() error {
+		recipes = append(recipes, schema.Recipe{
+			ResultID:      i,
+			Dependency1ID: j,
+			Dependency2ID: k,
+		})
+		return nil
+	})
+
+	return recipes, err
+}
