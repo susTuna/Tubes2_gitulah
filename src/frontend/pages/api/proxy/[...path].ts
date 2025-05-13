@@ -8,10 +8,15 @@ export const config = {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_PUBLIC_API_URL;
+  let backendUrl = process.env.NEXT_PUBLIC_BACKEND_PUBLIC_API_URL;
   
   if (!backendUrl) {
     return res.status(500).json({ error: 'Backend URL is not configured' });
+  }
+
+  // Ensure the backend URL has a protocol
+  if (!backendUrl.startsWith('http://') && !backendUrl.startsWith('https://')) {
+    backendUrl = 'http://' + backendUrl;
   }
 
   // Get the path from the request
