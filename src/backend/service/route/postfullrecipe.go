@@ -38,6 +38,10 @@ func PostFullRecipe(w http.ResponseWriter, r *http.Request) {
 		response.SearchID = findfullrecipe.WithSinglethreadedBFS(element, request.Count, request.Delay)
 	} else if request.Method == "bfs" && request.Threading == "multi" {
 		response.SearchID = findfullrecipe.WithMultithreadedBFS(element, request.Count, request.Delay)
+		//} else if request.Method == "bidirectional" && request.Threading == "single" {
+		//	response.SearchID = findfullrecipe.WithSinglethreadedBidirectional(element, request.Count, request.Delay)
+		//} else if request.Method == "bidirectional" && request.Threading == "multi" {
+
 	} else {
 		w.WriteHeader(http.StatusNotImplemented)
 		return

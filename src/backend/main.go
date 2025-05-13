@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/filbertengyo/Tubes2_gitulah/database"
+	"github.com/filbertengyo/Tubes2_gitulah/service/findfullrecipe"
 	"github.com/filbertengyo/Tubes2_gitulah/service/middleware"
 	"github.com/filbertengyo/Tubes2_gitulah/service/route"
 )
@@ -31,6 +32,9 @@ func main() {
 			os.Exit(1)
 		}
 	}
+
+	findfullrecipe.InitializeSearchCleaner()
+	defer findfullrecipe.DeinitializeSearchCleaner()
 
 	http.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
@@ -57,7 +61,7 @@ func main() {
 
 	port := os.Getenv("BACKEND_HOST_PORT")
 
-	if err := http.ListenAndServe(":" + port, handler); err != nil {
+	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		fmt.Println("An error occured!")
 		fmt.Println(err.Error())
 	}
