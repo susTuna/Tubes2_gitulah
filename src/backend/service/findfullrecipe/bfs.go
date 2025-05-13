@@ -62,6 +62,11 @@ func multithreadedBFS(result *schema.SearchResult, node *schema.SearchNode, coun
 
 	if len(recipes) == 0 {
 		node.RecipesFound = 1
+
+		result.Lock()
+		result.NodesSearched++
+		result.Unlock()
+
 		updateRecipeCounts(node)
 		return
 	}
@@ -135,6 +140,10 @@ func singlethreadedBFS(result *schema.SearchResult, count int, delay int) {
 				nodes[i].Lock()
 				nodes[i].RecipesFound = 1
 				nodes[i].Unlock()
+
+				result.Lock()
+				result.NodesSearched++
+				result.Unlock()
 
 				updateRecipeCounts(nodes[i])
 				result.Root.RLock()

@@ -62,6 +62,10 @@ func singlethreadedDFS(result *schema.SearchResult, node *schema.SearchNode, cou
 	node.RUnlock()
 
 	if len(recipes) == 0 {
+		result.Lock()
+		result.NodesSearched++
+		result.Unlock()
+
 		node.RecipesFound = 1
 		updateRecipeCounts(node)
 		return
@@ -125,6 +129,10 @@ func multithreadedDFS(result *schema.SearchResult, node *schema.SearchNode, chan
 	if len(recipes) == 0 {
 		node.RecipesFound = 1
 		channels.finish <- node.RecipesFound
+
+		result.Lock()
+		result.NodesSearched++
+		result.Unlock()
 
 		ok := true
 		for ok {
