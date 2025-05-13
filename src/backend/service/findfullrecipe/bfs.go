@@ -137,6 +137,7 @@ func singlethreadedBFS(result *schema.SearchResult, count int, delay int) {
 				nodes[i].Unlock()
 
 				updateRecipeCounts(nodes[i])
+				continue
 			}
 
 			result.Root.RLock()
