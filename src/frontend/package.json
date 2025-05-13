@@ -17,6 +17,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dagre": "^0.8.5",
+    "http-proxy": "^1.18.1",
     "lucide-react": "^0.508.0",
     "next": "14.2.28",
     "react": "^18",
@@ -28,6 +29,7 @@
   "devDependencies": {
     "@shadcn/ui": "^0.0.4",
     "@types/dagre": "^0.7.52",
+    "@types/http-proxy": "^1.17.16",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
