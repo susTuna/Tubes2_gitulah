@@ -9,18 +9,18 @@ export const config = {
 }
 
 const proxy = createProxyMiddleware({
-  target: process.env.BACKEND_PUBLIC_API_URL,
+  target: process.env.NEXT_PUBLIC_BACKEND_PUBLIC_API_URL,
   changeOrigin: true,
   secure: false,
-  pathRewrite: { '^/api/proxy': '' }, // This will strip '/api/proxy' from the request URL
+  pathRewrite: { '^/api/proxy': '' },
 })
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (!process.env.BACKEND_PUBLIC_API_URL) {
+  if (!process.env.NEXT_PUBLIC_BACKEND_PUBLIC_API_URL) {
     return res.status(500).json({ error: 'Backend URL is not configured' })
   }
 
-  console.log("Proxying to:", `${process.env.BACKEND_PUBLIC_API_URL}${req.url?.replace('/api/proxy', '')}`)
+  console.log("Proxying to:", `${process.env.NEXT_PUBLIC_BACKEND_PUBLIC_API_URL}${req.url?.replace('/api/proxy', '')}`)
 
   // Call the proxy middleware to forward the request
   return proxy(req, res)
