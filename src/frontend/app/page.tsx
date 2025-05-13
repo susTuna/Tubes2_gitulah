@@ -5,13 +5,14 @@ import Details from "@/components/details/details"
 import SearchBar from "@/components/searchbar/searchbar"
 import RecipeTree from "@/components/recipetree/tree"
 import { fetchElementInfo } from "@/util/parser/parser"
+import { fetchFromBackend } from "@/pages/api/proxy/proxy"
 
 export default function Page() {
   const [recipeData, setRecipeData] = useState(null)
 
   const handleSearch = async (requestBody: unknown) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_PUBLIC_API_URL}/fullrecipe/`, {
+      const response = await fetchFromBackend(`/fullrecipe/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -33,7 +34,7 @@ export default function Page() {
   const pollRecipeData = async (searchId: number) => {
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_PUBLIC_API_URL}/fullrecipe/${searchId}`)
+        const response = await fetchFromBackend(`/fullrecipe/${searchId}`)
         if (!response.ok) throw new Error("Failed to fetch recipe data")
   
         const data = await response.json()

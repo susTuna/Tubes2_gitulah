@@ -2,6 +2,7 @@
 import dagre from 'dagre';
 import StepEdge from '@/components/edges/stepedge';
 import ImageNode from '@/components/nodes/imagenode';
+import { fetchFromBackend } from '@/pages/api/proxy/proxy';
 
 export interface RecipeJson {
   nodes: number[];
@@ -64,7 +65,7 @@ export const fetchElementInfo = async (
   await Promise.all(
     ids.map(async (id) => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_PUBLIC_API_URL}/elements/${id}?type=id`);
+        const res = await fetchFromBackend(`/elements/${id}?type=id`);
         const data: ElementInfo = await res.json();
         map[id] = data;
       } catch (err) {

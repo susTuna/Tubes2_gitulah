@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState } from "react"
 import { Filter, Search, Check } from "lucide-react"
-
+import { fetchFromBackend } from "@/pages/api/proxy/proxy"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -68,8 +68,8 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
     const threading = filterOptions.find((f) => f.id === "multi" && f.checked) ? "multi" : "single"
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_PUBLIC_API_URL}/elements/${searchQuery}?type=name`,
+      const response = await fetchFromBackend(
+        `/elements/${searchQuery}?type=name`,
       )
       if (!response.ok) {
         throw new Error("Failed to fetch data from server")
